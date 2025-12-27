@@ -4,6 +4,7 @@ import {
   addFavorite,
   removeFavorite,
   toggleFavorite,
+  checkFavorite,
 } from '../controllers/favorite.controller.js';
 import { authenticate } from '../middleware/auth.js';
 
@@ -13,6 +14,7 @@ const router = Router();
 router.use(authenticate);
 
 router.get('/', getFavorites);
+router.get('/check/:salonId', checkFavorite);
 router.post('/', addFavorite);
 router.post('/toggle', toggleFavorite);
 router.delete('/:id', removeFavorite);

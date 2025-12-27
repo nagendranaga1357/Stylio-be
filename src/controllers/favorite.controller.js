@@ -107,3 +107,26 @@ export const toggleFavorite = asyncHandler(async (req, res) => {
   }
 });
 
+/**
+ * @desc    Check if salon is in favorites
+ * @route   GET /api/favorites/check/:salonId
+ * @access  Private
+ */
+export const checkFavorite = asyncHandler(async (req, res) => {
+  const { salonId } = req.params;
+
+  if (!salonId) {
+    throw new ApiError(400, 'Salon ID is required');
+  }
+
+  const favorite = await Favorite.findOne({ 
+    user: req.user._id, 
+    salon: salonId 
+  });
+
+  res.json({
+    success: true,
+    data: { isFavorite: !!favorite },
+  });
+});
+

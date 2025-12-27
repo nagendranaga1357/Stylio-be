@@ -8,6 +8,7 @@ import {
 const router = Router();
 
 router.get('/', getPromoCodes);
+router.get('/active', getPromoCodes); // Alias for mobile app compatibility
 router.post('/validate', validatePromoCode);
 router.get('/:code', getPromoCode);
 
