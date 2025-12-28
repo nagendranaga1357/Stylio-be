@@ -1,5 +1,5 @@
 import { asyncHandler, ApiError } from '../middleware/errorHandler.js';
-import { Short, ShortLike, ShortComment, ShortBookmark } from '../models/Short.js';
+import { Short, ShortLike, ShortComment, ShortBookmark, ShortCommentLike, CreatorFollow } from '../models/Short.js';
 import { buildPaginationResponse } from '../utils/searchHelpers.js';
 
 /**
@@ -271,26 +271,49 @@ export const toggleLike = asyncHandler(async (req, res) => {
 /**
  * @desc    Get comments
  * @route   GET /api/shorts/:id/comments
- * @access  Public
+ * @access  Public (with optional auth)
  */
 export const getComments = asyncHandler(async (req, res) => {
   const { page = 1, limit = 20 } = req.query;
   const skip = (parseInt(page) - 1) * parseInt(limit);
   const limitNum = Math.min(parseInt(limit), 50);
 
+  // Only get top-level comments (no parent)
+  const query = { 
+    short: req.params.id,
+    parent: { $exists: false },
+    isActive: true,
+  };
+
   const [comments, total] = await Promise.all([
-    ShortComment.find({ short: req.params.id })
+    ShortComment.find(query)
       .populate('user', 'firstName lastName username avatar')
       .sort('-createdAt')
       .skip(skip)
       .limit(limitNum),
-    ShortComment.countDocuments({ short: req.params.id }),
+    ShortComment.countDocuments(query),
   ]);
+
+  // Check if user liked each comment
+  let likedIds = new Set();
+  if (req.user) {
+    const userLikes = await ShortCommentLike.find({
+      user: req.user._id,
+      comment: { $in: comments.map((c) => c._id) },
+    }).select('comment');
+
+    likedIds = new Set(userLikes.map((l) => l.comment.toString()));
+  }
+
+  const formattedComments = comments.map((comment) => ({
+    ...comment.toJSON(),
+    isLiked: likedIds.has(comment._id.toString()),
+  }));
 
   res.json({
     success: true,
     data: { 
-      comments,
+      comments: formattedComments,
       pagination: buildPaginationResponse(parseInt(page), limitNum, total),
     },
   });
@@ -302,7 +325,9 @@ export const getComments = asyncHandler(async (req, res) => {
  * @access  Private
  */
 export const addComment = asyncHandler(async (req, res) => {
-  const { comment: text } = req.body;
+  // Support both 'comment' and 'text' field names
+  const text = req.body.comment || req.body.text;
+  const { parentId } = req.body;
 
   if (!text) {
     throw new ApiError(400, 'Comment text is required');
@@ -313,11 +338,24 @@ export const addComment = asyncHandler(async (req, res) => {
     throw new ApiError(404, 'Short not found');
   }
 
-  const comment = await ShortComment.create({
+  const commentData = {
     short: short._id,
     user: req.user._id,
     comment: text,
-  });
+  };
+
+  // If this is a reply, validate parent exists and update its reply count
+  if (parentId) {
+    const parentComment = await ShortComment.findById(parentId);
+    if (!parentComment) {
+      throw new ApiError(404, 'Parent comment not found');
+    }
+    commentData.parent = parentId;
+    parentComment.replyCount += 1;
+    await parentComment.save();
+  }
+
+  const comment = await ShortComment.create(commentData);
 
   // Update comments count
   await short.incrementComments();
@@ -479,6 +517,177 @@ export const getBookmarkedShorts = asyncHandler(async (req, res) => {
     success: true,
     data: {
       data: formattedShorts,
+      pagination: buildPaginationResponse(parseInt(page), limitNum, total),
+    },
+  });
+});
+
+/**
+ * @desc    Increment share count
+ * @route   POST /api/shorts/:id/share
+ * @access  Public
+ */
+export const recordShare = asyncHandler(async (req, res) => {
+  const short = await Short.findById(req.params.id);
+
+  if (!short) {
+    throw new ApiError(404, 'Short not found');
+  }
+
+  await short.incrementShares();
+
+  res.json({
+    success: true,
+    data: { 
+      shareCount: short.shareCount,
+      shares: formatCount(short.shareCount),
+    },
+  });
+});
+
+/**
+ * @desc    Like/unlike comment
+ * @route   POST /api/shorts/comments/:commentId/like
+ * @access  Private
+ */
+export const toggleCommentLike = asyncHandler(async (req, res) => {
+  const { commentId } = req.params;
+  
+  const comment = await ShortComment.findById(commentId);
+
+  if (!comment || !comment.isActive) {
+    throw new ApiError(404, 'Comment not found');
+  }
+
+  const existingLike = await ShortCommentLike.findOne({
+    comment: comment._id,
+    user: req.user._id,
+  });
+
+  if (existingLike) {
+    await existingLike.deleteOne();
+    comment.likeCount = Math.max(0, comment.likeCount - 1);
+    await comment.save();
+    
+    res.json({
+      success: true,
+      message: 'Comment unliked',
+      data: { 
+        isLiked: false, 
+        likeCount: comment.likeCount,
+        likes: comment.likeCount,
+      },
+    });
+  } else {
+    await ShortCommentLike.create({ comment: comment._id, user: req.user._id });
+    comment.likeCount += 1;
+    await comment.save();
+    
+    res.json({
+      success: true,
+      message: 'Comment liked',
+      data: { 
+        isLiked: true, 
+        likeCount: comment.likeCount,
+        likes: comment.likeCount,
+      },
+    });
+  }
+});
+
+/**
+ * @desc    Follow/unfollow creator
+ * @route   POST /api/shorts/creators/:creatorUsername/follow
+ * @access  Private
+ */
+export const toggleCreatorFollow = asyncHandler(async (req, res) => {
+  const { creatorUsername } = req.params;
+  
+  if (!creatorUsername) {
+    throw new ApiError(400, 'Creator username is required');
+  }
+
+  // Normalize username (remove @ if present)
+  const normalizedUsername = creatorUsername.startsWith('@') 
+    ? creatorUsername 
+    : `@${creatorUsername}`;
+
+  const existingFollow = await CreatorFollow.findOne({
+    follower: req.user._id,
+    creatorUsername: normalizedUsername,
+  });
+
+  // Get current follower count for this creator
+  const currentCount = await CreatorFollow.countDocuments({ creatorUsername: normalizedUsername });
+
+  if (existingFollow) {
+    await existingFollow.deleteOne();
+    
+    res.json({
+      success: true,
+      message: 'Unfollowed creator',
+      data: { 
+        isFollowing: false, 
+        followersCount: Math.max(0, currentCount - 1),
+      },
+    });
+  } else {
+    await CreatorFollow.create({ 
+      follower: req.user._id, 
+      creatorUsername: normalizedUsername,
+    });
+    
+    res.json({
+      success: true,
+      message: 'Following creator',
+      data: { 
+        isFollowing: true, 
+        followersCount: currentCount + 1,
+      },
+    });
+  }
+});
+
+/**
+ * @desc    Get comment replies
+ * @route   GET /api/shorts/comments/:commentId/replies
+ * @access  Public
+ */
+export const getCommentReplies = asyncHandler(async (req, res) => {
+  const { commentId } = req.params;
+  const { page = 1, limit = 20 } = req.query;
+  const skip = (parseInt(page) - 1) * parseInt(limit);
+  const limitNum = Math.min(parseInt(limit), 50);
+
+  const [replies, total] = await Promise.all([
+    ShortComment.find({ parent: commentId, isActive: true })
+      .populate('user', 'firstName lastName username avatar')
+      .sort('createdAt')
+      .skip(skip)
+      .limit(limitNum),
+    ShortComment.countDocuments({ parent: commentId, isActive: true }),
+  ]);
+
+  // Check if user liked each reply
+  let likedIds = new Set();
+  if (req.user) {
+    const userLikes = await ShortCommentLike.find({
+      user: req.user._id,
+      comment: { $in: replies.map((r) => r._id) },
+    }).select('comment');
+
+    likedIds = new Set(userLikes.map((l) => l.comment.toString()));
+  }
+
+  const formattedReplies = replies.map((reply) => ({
+    ...reply.toJSON(),
+    isLiked: likedIds.has(reply._id.toString()),
+  }));
+
+  res.json({
+    success: true,
+    data: { 
+      replies: formattedReplies,
       pagination: buildPaginationResponse(parseInt(page), limitNum, total),
     },
   });

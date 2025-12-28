@@ -3,6 +3,7 @@ import {
   getFavorites,
   addFavorite,
   removeFavorite,
+  removeFavoriteBySalonId,
   toggleFavorite,
   checkFavorite,
 } from '../controllers/favorite.controller.js';
@@ -17,6 +18,11 @@ router.get('/', getFavorites);
 router.get('/check/:salonId', checkFavorite);
 router.post('/', addFavorite);
 router.post('/toggle', toggleFavorite);
+
+// Delete by salon ID (must be before /:id to avoid conflict)
+router.delete('/salon/:salonId', removeFavoriteBySalonId);
+
+// Delete by favorite document ID
 router.delete('/:id', removeFavorite);
 
 export default router;

@@ -10,7 +10,7 @@ export const getFavorites = asyncHandler(async (req, res) => {
   const favorites = await Favorite.find({ user: req.user._id })
     .populate({
       path: 'salon',
-      select: 'name address coverImage rating totalReviews openingTime closingTime',
+      select: 'name address coverImage thumbnailUrl rating averageRating totalReviews openingTime closingTime mode audience priceLevel',
       populate: {
         path: 'area',
         select: 'name',
@@ -19,9 +19,26 @@ export const getFavorites = asyncHandler(async (req, res) => {
     })
     .sort('-createdAt');
 
+  // V1: Format favorites response with salon details
+  const formattedFavorites = favorites.map((fav) => ({
+    id: fav._id,
+    salon: fav.salon ? {
+      id: fav.salon._id,
+      name: fav.salon.name,
+      thumbnailUrl: fav.salon.thumbnailUrl || fav.salon.coverImage,
+      averageRating: fav.salon.averageRating || fav.salon.rating || 0,
+      mode: fav.salon.mode || 'toSalon',
+      priceLevel: fav.salon.priceLevel || 2,
+      address: fav.salon.address,
+      areaName: fav.salon.area?.name,
+      cityName: fav.salon.area?.city?.name,
+    } : null,
+    createdAt: fav.createdAt,
+  }));
+
   res.json({
     success: true,
-    data: { favorites },
+    data: { favorites: formattedFavorites },
   });
 });
 
@@ -56,7 +73,7 @@ export const addFavorite = asyncHandler(async (req, res) => {
 });
 
 /**
- * @desc    Remove from favorites
+ * @desc    Remove from favorites by favorite ID
  * @route   DELETE /api/favorites/:id
  * @access  Private
  */
@@ -73,6 +90,30 @@ export const removeFavorite = asyncHandler(async (req, res) => {
   res.json({
     success: true,
     message: 'Removed from favorites',
+  });
+});
+
+/**
+ * @desc    Remove from favorites by salon ID
+ * @route   DELETE /api/favorites/salon/:salonId
+ * @access  Private
+ */
+export const removeFavoriteBySalonId = asyncHandler(async (req, res) => {
+  const { salonId } = req.params;
+
+  const favorite = await Favorite.findOneAndDelete({
+    salon: salonId,
+    user: req.user._id,
+  });
+
+  if (!favorite) {
+    throw new ApiError(404, 'Favorite not found');
+  }
+
+  res.json({
+    success: true,
+    message: 'Removed from favorites',
+    data: { isFavorite: false },
   });
 });
 

@@ -19,7 +19,7 @@ const CATEGORIES = [
   'transformation', // Before/after transformations
 ];
 
-// Short Comment Schema
+// Short Comment Schema (V1 Enhanced)
 const shortCommentSchema = new mongoose.Schema({
   short: {
     type: mongoose.Schema.Types.ObjectId,
@@ -31,14 +31,35 @@ const shortCommentSchema = new mongoose.Schema({
     ref: 'User',
     required: true,
   },
+  // V1: Support both 'comment' and 'text' field names
   comment: {
     type: String,
     required: [true, 'Comment is required'],
     trim: true,
+    maxlength: 500,
+  },
+  // V1: Parent comment for replies
+  parent: {
+    type: mongoose.Schema.Types.ObjectId,
+    ref: 'ShortComment',
+  },
+  // V1: Like count
+  likeCount: {
+    type: Number,
+    default: 0,
+  },
+  // V1: Reply count
+  replyCount: {
+    type: Number,
+    default: 0,
   },
   isEdited: {
     type: Boolean,
     default: false,
+  },
+  isActive: {
+    type: Boolean,
+    default: true,
   },
 }, {
   timestamps: true,
@@ -46,12 +67,18 @@ const shortCommentSchema = new mongoose.Schema({
     virtuals: true,
     transform: (doc, ret) => {
       ret.id = ret._id;
+      ret.text = ret.comment; // Alias for frontend
+      ret.likes = ret.likeCount;
+      ret.replies = ret.replyCount;
       delete ret._id;
       delete ret.__v;
       return ret;
     },
   },
 });
+
+shortCommentSchema.index({ short: 1, createdAt: -1 });
+shortCommentSchema.index({ parent: 1 });
 
 // Short Like Schema
 const shortLikeSchema = new mongoose.Schema({
@@ -89,6 +116,43 @@ const shortBookmarkSchema = new mongoose.Schema({
 
 shortBookmarkSchema.index({ short: 1, user: 1 }, { unique: true });
 shortBookmarkSchema.index({ user: 1, createdAt: -1 }); // For fetching user's bookmarks
+
+// Short Comment Like Schema (NEW for V1)
+const shortCommentLikeSchema = new mongoose.Schema({
+  comment: {
+    type: mongoose.Schema.Types.ObjectId,
+    ref: 'ShortComment',
+    required: true,
+  },
+  user: {
+    type: mongoose.Schema.Types.ObjectId,
+    ref: 'User',
+    required: true,
+  },
+}, {
+  timestamps: true,
+});
+
+shortCommentLikeSchema.index({ comment: 1, user: 1 }, { unique: true });
+
+// Creator Follow Schema (NEW for V1)
+const creatorFollowSchema = new mongoose.Schema({
+  follower: {
+    type: mongoose.Schema.Types.ObjectId,
+    ref: 'User',
+    required: true,
+  },
+  creatorUsername: {
+    type: String,
+    required: true,
+    trim: true,
+  },
+}, {
+  timestamps: true,
+});
+
+creatorFollowSchema.index({ follower: 1, creatorUsername: 1 }, { unique: true });
+creatorFollowSchema.index({ creatorUsername: 1 }); // For counting followers
 
 // V1 Creator Schema (embedded)
 const creatorSchema = new mongoose.Schema({
@@ -351,6 +415,12 @@ shortSchema.methods.decrementComments = async function() {
   }
 };
 
+shortSchema.methods.incrementShares = async function() {
+  this.shareCount += 1;
+  this.sharesCount += 1; // Keep in sync
+  await this.save();
+};
+
 // =====================
 // PRE-SAVE HOOKS
 // =====================
@@ -395,3 +465,5 @@ export const Short = mongoose.model('Short', shortSchema);
 export const ShortLike = mongoose.model('ShortLike', shortLikeSchema);
 export const ShortComment = mongoose.model('ShortComment', shortCommentSchema);
 export const ShortBookmark = mongoose.model('ShortBookmark', shortBookmarkSchema);
+export const ShortCommentLike = mongoose.model('ShortCommentLike', shortCommentLikeSchema);
+export const CreatorFollow = mongoose.model('CreatorFollow', creatorFollowSchema);
