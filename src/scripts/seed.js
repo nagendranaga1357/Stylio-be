@@ -5,6 +5,7 @@ import { City, Area } from '../models/Location.js';
 import Salon from '../models/Salon.js';
 import { ServiceCategory, ServiceType, Service } from '../models/Service.js';
 import ServiceProvider from '../models/Provider.js';
+import { Short } from '../models/Short.js';
 
 /**
  * V1 Database Seed Script
@@ -601,6 +602,208 @@ const seedDatabase = async () => {
     }
 
     // =====================
+    // SHORTS (V1 Reels/TikTok style content)
+    // =====================
+
+    // Sample MP4 video URLs (public domain / sample videos)
+    // In production, these would be your own CDN-hosted videos
+    const SAMPLE_VIDEOS = [
+      'https://sample-videos.com/video321/mp4/720/big_buck_bunny_720p_1mb.mp4',
+      'https://commondatastorage.googleapis.com/gtv-videos-bucket/sample/ForBiggerBlazes.mp4',
+      'https://commondatastorage.googleapis.com/gtv-videos-bucket/sample/ForBiggerEscapes.mp4',
+      'https://commondatastorage.googleapis.com/gtv-videos-bucket/sample/ForBiggerFun.mp4',
+      'https://commondatastorage.googleapis.com/gtv-videos-bucket/sample/ForBiggerJoyrides.mp4',
+      'https://commondatastorage.googleapis.com/gtv-videos-bucket/sample/ForBiggerMeltdowns.mp4',
+    ];
+
+    const shortsData = [
+      {
+        title: 'Perfect Fade Haircut Tutorial 💈',
+        description: 'Master the art of the perfect fade! Watch and learn from a pro barber. #barbering #haircut #fade',
+        thumbnail: 'https://images.unsplash.com/photo-1599351431202-1e0f0137899a?w=400',
+        videoUrl: SAMPLE_VIDEOS[0],
+        platform: 'local',
+        duration: '0:45',
+        category: 'haircut',
+        music: 'Original Sound - BarberPro',
+        creator: { name: 'BarberPro Academy', username: '@barberpro', avatar: 'https://i.pravatar.cc/150?u=barber1', verified: true, followers: '1.2M' },
+        tags: ['#haircut', '#fade', '#barbering', '#grooming'],
+        viewCount: 2340000,
+        likeCount: 89000,
+        commentCount: 1200,
+        shareCount: 5600,
+        salon: styleStudio._id,
+      },
+      {
+        title: 'Bridal Makeup Transformation ✨',
+        description: 'Watch this stunning bridal makeup transformation! From bare face to gorgeous bride. #bridal #makeup #wedding',
+        thumbnail: 'https://images.unsplash.com/photo-1487412720507-e7ab37603c6f?w=400',
+        videoUrl: SAMPLE_VIDEOS[1],
+        platform: 'local',
+        duration: '1:24',
+        category: 'bridal',
+        music: 'Wedding Day - Romantic Music',
+        creator: { name: 'Glam Studio', username: '@glamstudio', avatar: 'https://i.pravatar.cc/150?u=glam1', verified: true, followers: '1.2M' },
+        tags: ['#bridal', '#makeup', '#wedding', '#transformation'],
+        viewCount: 5600000,
+        likeCount: 234000,
+        commentCount: 8900,
+        shareCount: 45000,
+        salon: glamAtHome._id,
+      },
+      {
+        title: 'Beard Grooming Tips for Men 🧔',
+        description: 'Top 5 beard grooming tips every man should know. Perfect your beard game! #beard #grooming #men',
+        thumbnail: 'https://images.unsplash.com/photo-1621605815971-fbc98d665033?w=400',
+        videoUrl: SAMPLE_VIDEOS[2],
+        platform: 'local',
+        duration: '0:45',
+        category: 'grooming',
+        music: 'Gentleman\'s Guide - Beats',
+        creator: { name: 'Gents Corner', username: '@gentscorner', avatar: 'https://i.pravatar.cc/150?u=gents1', verified: true, followers: '567K' },
+        tags: ['#beard', '#grooming', '#men', '#tips'],
+        viewCount: 1890000,
+        likeCount: 67000,
+        commentCount: 890,
+        shareCount: 3400,
+        salon: gentsCut._id,
+      },
+      {
+        title: 'Nail Art Design Ideas 2024 💅',
+        description: 'Trending nail art designs for 2024! Which one is your favorite? Comment below! #nailart #nails #trend',
+        thumbnail: 'https://images.unsplash.com/photo-1604654894610-df63bc536371?w=400',
+        videoUrl: SAMPLE_VIDEOS[3],
+        platform: 'local',
+        duration: '0:38',
+        category: 'nailart',
+        music: 'Pretty Nails - Pop',
+        creator: { name: 'Nail Queen', username: '@nailqueen', avatar: 'https://i.pravatar.cc/150?u=nail1', verified: false, followers: '89K' },
+        tags: ['#nailart', '#nails', '#trend', '#design'],
+        viewCount: 890000,
+        likeCount: 45000,
+        commentCount: 560,
+        shareCount: 2100,
+        salon: glamAtHome._id,
+      },
+      {
+        title: 'Hair Color Transformation 😍',
+        description: 'From brunette to blonde in one session! Amazing hair color transformation. #haircolor #transformation #blonde',
+        thumbnail: 'https://images.unsplash.com/photo-1522337360788-8b13dee7a37e?w=400',
+        videoUrl: SAMPLE_VIDEOS[4],
+        platform: 'local',
+        duration: '1:12',
+        category: 'haircolor',
+        music: 'Glow Up - Electronic',
+        creator: { name: 'Color Masters', username: '@colormasters', avatar: 'https://i.pravatar.cc/150?u=color1', verified: true, followers: '890K' },
+        tags: ['#haircolor', '#transformation', '#blonde', '#hair'],
+        viewCount: 3450000,
+        likeCount: 156000,
+        commentCount: 4500,
+        shareCount: 12000,
+        salon: styleStudio._id,
+      },
+      {
+        title: 'Facial Glow Up Routine ✨',
+        description: 'My 10-minute facial routine for glowing skin. Glass skin goals! #skincare #facial #glow',
+        thumbnail: 'https://images.unsplash.com/photo-1570172619644-dfd03ed5d881?w=400',
+        videoUrl: SAMPLE_VIDEOS[5],
+        platform: 'local',
+        duration: '0:52',
+        category: 'skincare',
+        music: 'Relaxing Spa - Ambient',
+        creator: { name: 'Skin Expert', username: '@skinexpert', avatar: 'https://i.pravatar.cc/150?u=skin1', verified: true, followers: '456K' },
+        tags: ['#skincare', '#facial', '#glow', '#routine'],
+        viewCount: 1230000,
+        likeCount: 78000,
+        commentCount: 1200,
+        shareCount: 5600,
+        salon: glamAtHome._id,
+      },
+      {
+        title: 'Classic Pompadour Tutorial 💈',
+        description: 'How to style a classic pompadour at home. Step-by-step guide! #pompadour #hairstyle #classic',
+        thumbnail: 'https://images.unsplash.com/photo-1503951914875-452162b0f3f1?w=400',
+        videoUrl: SAMPLE_VIDEOS[0],
+        platform: 'local',
+        duration: '1:05',
+        category: 'hairstyle',
+        music: 'Retro Vibes - Jazz',
+        creator: { name: 'Style Pro', username: '@stylepro', avatar: 'https://i.pravatar.cc/150?u=style1', verified: false, followers: '234K' },
+        tags: ['#pompadour', '#hairstyle', '#classic', '#tutorial'],
+        viewCount: 980000,
+        likeCount: 34000,
+        commentCount: 450,
+        shareCount: 1800,
+        salon: gentsCut._id,
+      },
+      {
+        title: 'Party Makeup Look 🎉',
+        description: 'Glamorous party makeup tutorial. Get ready with me for a night out! #partymakeup #glam #tutorial',
+        thumbnail: 'https://images.unsplash.com/photo-1522335789203-aabd1fc54bc9?w=400',
+        videoUrl: SAMPLE_VIDEOS[1],
+        platform: 'local',
+        duration: '0:48',
+        category: 'makeup',
+        music: 'Party Night - Dance',
+        creator: { name: 'Makeup Magic', username: '@makeupmagic', avatar: 'https://i.pravatar.cc/150?u=makeup1', verified: true, followers: '1.8M' },
+        tags: ['#partymakeup', '#glam', '#tutorial', '#makeup'],
+        viewCount: 4500000,
+        likeCount: 198000,
+        commentCount: 6700,
+        shareCount: 23000,
+        salon: glamAtHome._id,
+      },
+      {
+        title: 'Relaxing Spa Day Experience 🧖‍♀️',
+        description: 'Join me for a relaxing spa day! Full body treatment and wellness routine. #spa #wellness #relaxation',
+        thumbnail: 'https://images.unsplash.com/photo-1544161515-4ab6ce6db874?w=400',
+        videoUrl: SAMPLE_VIDEOS[2],
+        platform: 'local',
+        duration: '1:30',
+        category: 'spa',
+        music: 'Zen Garden - Meditation',
+        creator: { name: 'Wellness Guru', username: '@wellnessguru', avatar: 'https://i.pravatar.cc/150?u=wellness1', verified: true, followers: '678K' },
+        tags: ['#spa', '#wellness', '#relaxation', '#selfcare'],
+        viewCount: 1560000,
+        likeCount: 87000,
+        commentCount: 980,
+        shareCount: 4200,
+        salon: glamAtHome._id,
+      },
+      {
+        title: 'Before & After Makeover 🌟',
+        description: 'Amazing complete makeover transformation! Hair, makeup, and style. #transformation #makeover #beauty',
+        thumbnail: 'https://images.unsplash.com/photo-1560066984-138dadb4c035?w=400',
+        videoUrl: SAMPLE_VIDEOS[3],
+        platform: 'local',
+        duration: '1:15',
+        category: 'transformation',
+        music: 'New Me - Inspirational',
+        creator: { name: 'Beauty Boss', username: '@beautyboss', avatar: 'https://i.pravatar.cc/150?u=beauty1', verified: true, followers: '2.1M' },
+        tags: ['#transformation', '#makeover', '#beauty', '#glow'],
+        viewCount: 6780000,
+        likeCount: 345000,
+        commentCount: 12000,
+        shareCount: 56000,
+        salon: styleStudio._id,
+      },
+    ];
+
+    for (const shortData of shortsData) {
+      const existingShort = await Short.findOne({ title: shortData.title });
+      if (!existingShort) {
+        await Short.create({
+          ...shortData,
+          isActive: true,
+          isFeatured: shortData.viewCount > 2000000,
+          isVerified: shortData.creator.verified,
+          publishedAt: new Date(Date.now() - Math.random() * 7 * 24 * 60 * 60 * 1000), // Random date within last week
+        });
+        console.log('✅ Short created:', shortData.title);
+      }
+    }
+
+    // =====================
     // SUCCESS OUTPUT
     // =====================
 
@@ -622,6 +825,9 @@ const seedDatabase = async () => {
     console.log('   - Style Studio (toSalon, unisex) - Andheri, Mumbai');
     console.log('   - Glam At Home (toHome, women) - Bandra, Mumbai');
     console.log('   - Gents Cut (both, men) - Koramangala, Bangalore');
+    console.log('\n🎬 Test Shorts/Reels:');
+    console.log('   - 8 sample shorts with YouTube/Instagram links');
+    console.log('   - Categories: haircut, makeup, beard, nail, skincare, bridal');
 
   } catch (error) {
     console.error('❌ Error seeding database:', error);

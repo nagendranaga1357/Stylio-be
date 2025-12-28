@@ -4,6 +4,8 @@ import {
   getShort,
   recordView,
   toggleLike,
+  toggleBookmark,
+  getBookmarkedShorts,
   getComments,
   addComment,
   getTrendingShorts,
@@ -12,16 +14,26 @@ import { authenticate, optionalAuth } from '../middleware/auth.js';
 
 const router = Router();
 
-// Public routes with optional auth for like status
-router.get('/trending', getTrendingShorts);
+// Public routes with optional auth for like/bookmark status
+router.get('/trending', optionalAuth, getTrendingShorts);
+
+// Bookmarks (must be before /:id routes)
+router.get('/bookmarks', authenticate, getBookmarkedShorts);
+
 router.get('/', optionalAuth, getShorts);
 router.get('/:id', optionalAuth, getShort);
-router.get('/:id/view', recordView);
-router.get('/:id/comments', getComments);
 
-// Protected routes
-router.post('/:id/like', authenticate, toggleLike);
+// View recording (supports both GET and POST)
+router.get('/:id/view', recordView);
+router.post('/:id/view', recordView);
+
+// Comments
+router.get('/:id/comments', getComments);
 router.post('/:id/comments', authenticate, addComment);
+
+// Protected routes - like and bookmark
+router.post('/:id/like', authenticate, toggleLike);
+router.post('/:id/bookmark', authenticate, toggleBookmark);
 
 export default router;
 

@@ -33,6 +33,8 @@ const SPECIALIZATIONS = [
   'Haircut',
   'Hair Styling',
   'Hair Coloring',
+  'Beard',
+  'Beard Styling',
   'Spa',
   'Massage',
   'Facial',
@@ -40,6 +42,7 @@ const SPECIALIZATIONS = [
   'Nails',
   'Bridal',
   'Mehndi',
+  'Grooming',
   'All Services',
 ];
 
