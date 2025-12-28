@@ -387,13 +387,36 @@ const seedDatabase = async () => {
     if (!provider1) {
       provider1 = await ServiceProvider.create({
         user: ownerUser._id,
+        name: 'Rajesh Sharma',
         salon: styleStudio._id,
         phone: '9876543210',
-        specialization: 'haircut',
+        specializations: ['Haircut', 'Hair Styling', 'Hair Coloring'],
+        specialization: 'haircut', // Legacy field
+        audience: ['men', 'women', 'kids'],
         experienceYears: 8,
+        experience: 8,
         bio: 'Expert hair stylist with 8 years of experience in premium salons',
+        averageRating: 4.6,
         rating: 4.6,
+        totalReviews: 89,
+        reviewCount: 89,
+        gallery: [
+          'https://images.unsplash.com/photo-1599351431202-1e0f0137899a?w=400',
+          'https://images.unsplash.com/photo-1560066984-138dadb4c035?w=400',
+        ],
+        services: [
+          { name: "Men's Haircut", price: 300, duration: 30 },
+          { name: "Women's Haircut", price: 500, duration: 45 },
+          { name: 'Hair Coloring', price: 1500, duration: 120 },
+        ],
+        location: {
+          type: 'Point',
+          coordinates: [72.8561, 19.1136],
+        },
+        city: mumbai._id,
+        area: andheri._id,
         isAvailable: true,
+        isActive: true,
         isVerified: true,
         availability: [
           { dayOfWeek: 0, startTime: '09:00', endTime: '21:00', isAvailable: true },
@@ -412,13 +435,39 @@ const seedDatabase = async () => {
     if (!provider2) {
       provider2 = await ServiceProvider.create({
         user: homeProviderUser._id,
+        name: 'Priya Mehta',
         salon: glamAtHome._id,
         phone: '9876543220',
-        specialization: 'makeup',
+        specializations: ['Makeup', 'Bridal', 'Facial'],
+        specialization: 'makeup', // Legacy field
+        audience: ['women'],
         experienceYears: 5,
+        experience: 5,
         bio: 'Celebrity makeup artist specializing in bridal and party makeup',
+        averageRating: 4.9,
         rating: 4.9,
+        totalReviews: 156,
+        reviewCount: 156,
+        gallery: [
+          'https://images.unsplash.com/photo-1487412720507-e7ab37603c6f?w=400',
+          'https://images.unsplash.com/photo-1522335789203-aabd1fc54bc9?w=400',
+        ],
+        services: [
+          { name: 'Party Makeup', price: 2500, duration: 90 },
+          { name: 'Bridal Makeup', price: 15000, duration: 180 },
+          { name: 'Facial at Home', price: 1200, duration: 60 },
+        ],
+        providesHomeService: true,
+        homeServiceAreas: [bandra._id, andheri._id],
+        homeServiceFee: 200,
+        location: {
+          type: 'Point',
+          coordinates: [72.8296, 19.0544],
+        },
+        city: mumbai._id,
+        area: bandra._id,
         isAvailable: true,
+        isActive: true,
         isVerified: true,
         availability: [
           { dayOfWeek: 0, startTime: '08:00', endTime: '22:00', isAvailable: true },
@@ -431,6 +480,74 @@ const seedDatabase = async () => {
         ],
       });
       console.log('✅ Service provider created for Glam At Home');
+    }
+
+    // Create a third provider for the men's barbershop
+    let provider3 = await ServiceProvider.findOne({ salon: gentsCut._id });
+    if (!provider3) {
+      // First create a user for this provider
+      let barberUser = await User.findOne({ username: 'barber' });
+      if (!barberUser) {
+        barberUser = await User.create({
+          username: 'barber',
+          email: 'barber@gentscut.com',
+          password: 'barber1234',
+          firstName: 'Vikram',
+          lastName: 'Singh',
+          phone: '9876543240',
+          role: 'provider',
+          isActive: true,
+          isEmailVerified: true,
+        });
+      }
+
+      provider3 = await ServiceProvider.create({
+        user: barberUser._id,
+        name: 'Vikram Singh',
+        salon: gentsCut._id,
+        phone: '9876543240',
+        specializations: ['Haircut', 'Beard Styling'],
+        specialization: 'haircut',
+        audience: ['men'],
+        experienceYears: 12,
+        experience: 12,
+        bio: 'Master barber with 12 years experience in classic and modern cuts',
+        averageRating: 4.7,
+        rating: 4.7,
+        totalReviews: 234,
+        reviewCount: 234,
+        gallery: [
+          'https://images.unsplash.com/photo-1503951914875-452162b0f3f1?w=400',
+          'https://images.unsplash.com/photo-1621605815971-fbc98d665033?w=400',
+        ],
+        services: [
+          { name: 'Classic Haircut', price: 250, duration: 30 },
+          { name: 'Beard Styling', price: 200, duration: 20 },
+          { name: 'Hair + Beard Combo', price: 400, duration: 45 },
+        ],
+        providesHomeService: true,
+        homeServiceAreas: [koramangala._id],
+        homeServiceFee: 150,
+        location: {
+          type: 'Point',
+          coordinates: [77.6245, 12.9352],
+        },
+        city: bangalore._id,
+        area: koramangala._id,
+        isAvailable: true,
+        isActive: true,
+        isVerified: true,
+        availability: [
+          { dayOfWeek: 0, startTime: '10:00', endTime: '20:00', isAvailable: false },
+          { dayOfWeek: 1, startTime: '10:00', endTime: '20:00', isAvailable: true },
+          { dayOfWeek: 2, startTime: '10:00', endTime: '20:00', isAvailable: true },
+          { dayOfWeek: 3, startTime: '10:00', endTime: '20:00', isAvailable: true },
+          { dayOfWeek: 4, startTime: '10:00', endTime: '20:00', isAvailable: true },
+          { dayOfWeek: 5, startTime: '10:00', endTime: '21:00', isAvailable: true },
+          { dayOfWeek: 6, startTime: '10:00', endTime: '21:00', isAvailable: true },
+        ],
+      });
+      console.log('✅ Service provider created for Gents Cut');
     }
 
     // =====================

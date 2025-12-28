@@ -55,6 +55,19 @@ const userSchema = new mongoose.Schema({
     state: String,
     pincode: String,
   },
+  // V1: Multiple addresses support
+  addresses: [{
+    street: { type: String, required: true },
+    city: { type: String, required: true },
+    state: { type: String },
+    pincode: { type: String },
+    isDefault: { type: Boolean, default: false },
+    label: { 
+      type: String, 
+      enum: ['Home', 'Work', 'Other'],
+      default: 'Home'
+    },
+  }],
   role: {
     type: String,
     enum: ['customer', 'provider', 'admin'],
@@ -90,6 +103,11 @@ const userSchema = new mongoose.Schema({
 // Virtual for full name
 userSchema.virtual('fullName').get(function() {
   return `${this.firstName || ''} ${this.lastName || ''}`.trim() || this.username;
+});
+
+// Virtual for isVerified (alias for isEmailVerified for frontend compatibility)
+userSchema.virtual('isVerified').get(function() {
+  return this.isEmailVerified;
 });
 
 // Hash password before saving

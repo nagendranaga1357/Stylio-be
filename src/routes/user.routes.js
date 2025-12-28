@@ -1,7 +1,17 @@
 import { Router } from 'express';
 import multer from 'multer';
 import path from 'path';
-import { getProfile, updateProfile, updatePassword, uploadAvatar } from '../controllers/user.controller.js';
+import { 
+  getProfile, 
+  updateProfile, 
+  updatePassword, 
+  uploadAvatar,
+  getAddresses,
+  addAddress,
+  updateAddress,
+  deleteAddress,
+  deleteAccount,
+} from '../controllers/user.controller.js';
 import { authenticate } from '../middleware/auth.js';
 import config from '../config/index.js';
 
@@ -35,10 +45,20 @@ const upload = multer({
 // All routes require authentication
 router.use(authenticate);
 
+// Profile routes
 router.get('/profile', getProfile);
 router.patch('/profile', updateProfile);
 router.patch('/password', updatePassword);
 router.post('/avatar', upload.single('avatar'), uploadAvatar);
+
+// Address routes
+router.get('/addresses', getAddresses);
+router.post('/addresses', addAddress);
+router.patch('/addresses/:addressId', updateAddress);
+router.delete('/addresses/:addressId', deleteAddress);
+
+// Account management
+router.delete('/account', deleteAccount);
 
 export default router;
 

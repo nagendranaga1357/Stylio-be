@@ -217,15 +217,28 @@ export const getServices = asyncHandler(async (req, res) => {
     Service.countDocuments(filter),
   ]);
 
-  // Format response
+  // Format response (V1 spec)
   const formattedServices = services.map(service => {
     const serviceObj = service.toJSON();
     return {
-      ...serviceObj,
       id: serviceObj._id,
-      finalPrice: serviceObj.discountedPrice || serviceObj.price,
+      name: serviceObj.name,
+      description: serviceObj.description,
       mode: serviceObj.mode || 'toSalon',
       audience: serviceObj.audience || [],
+      basePrice: serviceObj.basePrice || serviceObj.price,
+      price: serviceObj.price,
+      discountedPrice: serviceObj.discountedPrice,
+      finalPrice: serviceObj.discountedPrice || serviceObj.price,
+      duration: serviceObj.durationMinutes,
+      durationMinutes: serviceObj.durationMinutes,
+      category: serviceObj.serviceType?.category || null,
+      salon: serviceObj.salon ? {
+        id: serviceObj.salon._id || serviceObj.salon.id,
+        name: serviceObj.salon.name,
+      } : null,
+      image: serviceObj.image,
+      isPopular: serviceObj.isPopular,
     };
   });
 
