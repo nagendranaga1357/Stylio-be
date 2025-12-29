@@ -19,9 +19,40 @@ export const getProfile = asyncHandler(async (req, res) => {
 });
 
 /**
+ * Validate and check base64 image size
+ * @param {string} base64String - Base64 data URL
+ * @returns {Object} - { valid: boolean, error?: string }
+ */
+function validateBase64Avatar(base64String) {
+  // Check prefix
+  const validPrefixes = ['data:image/jpeg;base64,', 'data:image/png;base64,', 'data:image/jpg;base64,'];
+  const hasValidPrefix = validPrefixes.some(prefix => base64String.startsWith(prefix));
+  
+  if (!hasValidPrefix) {
+    return { valid: false, error: 'Avatar must be a JPEG or PNG image' };
+  }
+  
+  // Check size (base64 increases size by ~33%, so 200KB becomes ~267KB in base64)
+  // We'll limit to ~300KB base64 which is ~225KB actual image
+  const base64Data = base64String.split(',')[1] || '';
+  const sizeInBytes = (base64Data.length * 3) / 4; // Approximate size
+  const maxSize = 300 * 1024; // 300KB
+  
+  if (sizeInBytes > maxSize) {
+    return { valid: false, error: 'Avatar image is too large (max 200KB)' };
+  }
+  
+  return { valid: true };
+}
+
+/**
  * @desc    Update user profile
  * @route   PATCH /api/users/profile
  * @access  Private
+ * 
+ * @example Update profile with base64 avatar:
+ *   PATCH /api/users/profile
+ *   { "avatar": "data:image/jpeg;base64,/9j/4AAQSkZ..." }
  */
 export const updateProfile = asyncHandler(async (req, res) => {
   const {
@@ -31,16 +62,40 @@ export const updateProfile = asyncHandler(async (req, res) => {
     dateOfBirth,
     gender,
     address,
+    avatar, // V1: Base64 data URL for avatar
   } = req.body;
 
   const user = await User.findById(req.user._id);
 
-  if (firstName) user.firstName = firstName;
-  if (lastName) user.lastName = lastName;
-  if (phone) user.phone = phone;
+  if (firstName !== undefined) user.firstName = firstName;
+  if (lastName !== undefined) user.lastName = lastName;
+  if (phone !== undefined) user.phone = phone;
   if (dateOfBirth) user.dateOfBirth = new Date(dateOfBirth);
-  if (gender) user.gender = gender;
+  if (gender !== undefined) user.gender = gender;
   if (address) user.address = { ...user.address, ...address };
+  
+  // V1: Handle base64 avatar
+  if (avatar !== undefined) {
+    if (avatar === null || avatar === '') {
+      // Clear avatar
+      user.avatar = null;
+    } else if (avatar.startsWith('data:image/')) {
+      // Validate base64 avatar
+      const validation = validateBase64Avatar(avatar);
+      if (!validation.valid) {
+        throw new ApiError(400, validation.error);
+      }
+      // Store base64 data URL directly
+      user.avatar = avatar;
+    } else if (avatar.startsWith('http://') || avatar.startsWith('https://')) {
+      // Allow external URLs (backwards compatibility)
+      user.avatar = avatar;
+    }
+    // If it's already a path like /uploads/... keep it as is
+    else if (avatar.startsWith('/uploads/')) {
+      user.avatar = avatar;
+    }
+  }
 
   await user.save();
 
