@@ -139,18 +139,44 @@ export const updatePassword = asyncHandler(async (req, res) => {
  * @access  Private
  */
 export const uploadAvatar = asyncHandler(async (req, res) => {
-  if (!req.file) {
-    throw new ApiError(400, 'Please upload a file');
+  const user = await User.findById(req.user._id);
+  
+  if (!user) {
+    throw new ApiError(404, 'User not found');
   }
 
-  req.user.avatar = `/uploads/avatars/${req.file.filename}`;
-  await req.user.save();
-
-  res.json({
-    success: true,
-    message: 'Avatar uploaded successfully',
-    data: { avatarUrl: req.user.avatar },
-  });
+  // Handle file upload (legacy method)
+  if (req.file) {
+    user.avatar = `/uploads/avatars/${req.file.filename}`;
+    await user.save();
+    
+    return res.json({
+      success: true,
+      message: 'Avatar uploaded successfully',
+      data: { avatarUrl: user.avatar },
+    });
+  }
+  
+  // Handle base64 upload (new method for serverless)
+  const { avatar } = req.body;
+  
+  if (avatar && avatar.startsWith('data:image/')) {
+    const validation = validateBase64Avatar(avatar);
+    if (!validation.valid) {
+      throw new ApiError(400, validation.error);
+    }
+    
+    user.avatar = avatar;
+    await user.save();
+    
+    return res.json({
+      success: true,
+      message: 'Avatar uploaded successfully',
+      data: { avatarUrl: user.avatar },
+    });
+  }
+  
+  throw new ApiError(400, 'Please upload a file or provide base64 image data');
 });
 
 // =====================

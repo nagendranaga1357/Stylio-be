@@ -1,6 +1,7 @@
 import { Router } from 'express';
 import multer from 'multer';
 import path from 'path';
+import fs from 'fs';
 import { 
   getProfile, 
   updateProfile, 
@@ -17,10 +18,20 @@ import config from '../config/index.js';
 
 const router = Router();
 
-// Configure multer for avatar uploads
+// Ensure upload directory exists (for local development)
+const uploadDir = path.join(config.upload.dir, 'avatars');
+try {
+  if (!fs.existsSync(uploadDir)) {
+    fs.mkdirSync(uploadDir, { recursive: true });
+  }
+} catch (err) {
+  console.warn('Could not create upload directory:', err.message);
+}
+
+// Configure multer for avatar uploads (optional - will fall back to base64)
 const storage = multer.diskStorage({
   destination: (req, file, cb) => {
-    cb(null, path.join(config.upload.dir, 'avatars'));
+    cb(null, uploadDir);
   },
   filename: (req, file, cb) => {
     const uniqueSuffix = `${Date.now()}-${Math.round(Math.random() * 1e9)}`;
@@ -42,6 +53,17 @@ const upload = multer({
   },
 });
 
+// Middleware to handle multer errors gracefully
+const optionalUpload = (req, res, next) => {
+  upload.single('avatar')(req, res, (err) => {
+    // If there's a multer error (like directory not found), continue without file
+    if (err) {
+      console.warn('File upload failed, continuing with base64 fallback:', err.message);
+    }
+    next();
+  });
+};
+
 // All routes require authentication
 router.use(authenticate);
 
@@ -49,7 +71,7 @@ router.use(authenticate);
 router.get('/profile', getProfile);
 router.patch('/profile', updateProfile);
 router.patch('/password', updatePassword);
-router.post('/avatar', upload.single('avatar'), uploadAvatar);
+router.post('/avatar', optionalUpload, uploadAvatar);
 
 // Address routes
 router.get('/addresses', getAddresses);

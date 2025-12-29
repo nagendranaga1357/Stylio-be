@@ -73,15 +73,29 @@ export const addFavorite = asyncHandler(async (req, res) => {
 });
 
 /**
- * @desc    Remove from favorites by favorite ID
+ * @desc    Remove from favorites by favorite ID OR salon ID
  * @route   DELETE /api/favorites/:id
  * @access  Private
+ * 
+ * This endpoint accepts either a favorite document ID or a salon ID.
+ * It first tries to find by favorite document ID, then by salon ID.
  */
 export const removeFavorite = asyncHandler(async (req, res) => {
-  const favorite = await Favorite.findOneAndDelete({
-    _id: req.params.id,
+  const { id } = req.params;
+  
+  // First try to delete by favorite document ID
+  let favorite = await Favorite.findOneAndDelete({
+    _id: id,
     user: req.user._id,
-  });
+  }).catch(() => null); // Catch invalid ObjectId errors
+
+  // If not found, try to delete by salon ID
+  if (!favorite) {
+    favorite = await Favorite.findOneAndDelete({
+      salon: id,
+      user: req.user._id,
+    });
+  }
 
   if (!favorite) {
     throw new ApiError(404, 'Favorite not found');
@@ -90,6 +104,7 @@ export const removeFavorite = asyncHandler(async (req, res) => {
   res.json({
     success: true,
     message: 'Removed from favorites',
+    data: { isFavorite: false },
   });
 });
 
