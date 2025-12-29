@@ -1,12 +1,16 @@
 import mongoose from 'mongoose';
 
 const NOTIFICATION_TYPES = [
-  'booking_confirmed',
-  'booking_reminder',
-  'booking_cancelled',
-  'review_request',
-  'promo',
-  'general',
+  'booking_created',     // When booking is first created (pending)
+  'booking_confirmed',   // When salon confirms booking
+  'booking_started',     // When service starts (in_progress)
+  'booking_completed',   // When service is done
+  'booking_cancelled',   // When booking is cancelled
+  'booking_no_show',     // When customer doesn't show up
+  'booking_reminder',    // Reminder before appointment
+  'review_request',      // Ask customer to leave review
+  'promo',               // Promotional notification
+  'general',             // General notifications
 ];
 
 const notificationSchema = new mongoose.Schema({
