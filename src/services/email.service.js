@@ -4,13 +4,14 @@ import config from '../config/index.js';
 /**
  * Email Service
  * 
- * Supports multiple free SMTP providers:
- * - Gmail (requires App Password)
- * - Mailtrap (free tier for testing)
- * - Generic SMTP
+ * Supports multiple email providers:
+ * - Brevo HTTP API (recommended for Render - no SMTP restrictions)
+ * - SMTP (Gmail, Mailtrap, etc.)
  * - Development mode (console logging)
  * 
  * Environment Variables:
+ * - EMAIL_PROVIDER: 'brevo-api' | 'smtp' | 'console' (default: auto-detect)
+ * - BREVO_API_KEY: Brevo API key (for brevo-api provider)
  * - SMTP_HOST: SMTP server host
  * - SMTP_PORT: SMTP server port
  * - SMTP_USER: SMTP username/email
@@ -23,43 +24,113 @@ class EmailService {
   constructor() {
     this.transporter = null;
     this.isConfigured = false;
-    this.initTransporter();
+    this.provider = 'console'; // 'brevo-api' | 'smtp' | 'console'
+    this.brevoApiKey = process.env.BREVO_API_KEY || '';
+    this.init();
   }
 
   /**
-   * Initialize the email transporter
+   * Initialize the email service
    */
-  initTransporter() {
+  init() {
     const { email } = config;
+    const explicitProvider = process.env.EMAIL_PROVIDER;
 
-    // Check if email is configured
-    if (!email.host || !email.user || !email.pass) {
-      console.log('📧 Email service running in DEVELOPMENT mode (console logging only)');
-      console.log('   To enable email sending, configure SMTP_* environment variables');
-      this.isConfigured = false;
-      return;
+    // Determine provider
+    if (explicitProvider) {
+      this.provider = explicitProvider;
+    } else if (this.brevoApiKey) {
+      this.provider = 'brevo-api';
+    } else if (email.host && email.user && email.pass) {
+      this.provider = 'smtp';
+    } else {
+      this.provider = 'console';
     }
+
+    // Initialize based on provider
+    if (this.provider === 'brevo-api') {
+      this.isConfigured = true;
+      console.log('📧 Email service configured with Brevo HTTP API');
+    } else if (this.provider === 'smtp') {
+      this.initSmtpTransporter();
+    } else {
+      console.log('📧 Email service running in DEVELOPMENT mode (console logging only)');
+      console.log('   To enable email: set BREVO_API_KEY or SMTP_* environment variables');
+      this.isConfigured = false;
+    }
+  }
+
+  /**
+   * Initialize SMTP transporter
+   */
+  initSmtpTransporter() {
+    const { email } = config;
 
     try {
       this.transporter = nodemailer.createTransport({
         host: email.host,
         port: email.port,
-        secure: email.port === 465, // true for 465, false for other ports
+        secure: email.port === 465,
         auth: {
           user: email.user,
           pass: email.pass,
         },
-        // For Gmail with less secure apps disabled
         ...(email.host.includes('gmail') && {
           service: 'gmail',
         }),
+        // Connection timeout settings
+        connectionTimeout: 10000,
+        greetingTimeout: 10000,
+        socketTimeout: 15000,
       });
 
       this.isConfigured = true;
-      console.log(`📧 Email service configured with ${email.host}`);
+      console.log(`📧 Email service configured with SMTP: ${email.host}`);
     } catch (error) {
-      console.error('❌ Failed to configure email transporter:', error.message);
+      console.error('❌ Failed to configure SMTP transporter:', error.message);
       this.isConfigured = false;
+    }
+  }
+
+  /**
+   * Send email via Brevo HTTP API
+   */
+  async sendViaBrevoApi({ to, subject, text, html }) {
+    const { email } = config;
+    
+    const payload = {
+      sender: {
+        name: email.fromName || 'Stylio',
+        email: email.from || 'noreply@stylio.app',
+      },
+      to: [{ email: to }],
+      subject,
+      htmlContent: html,
+      textContent: text,
+    };
+
+    try {
+      const response = await fetch('https://api.brevo.com/v3/smtp/email', {
+        method: 'POST',
+        headers: {
+          'accept': 'application/json',
+          'api-key': this.brevoApiKey,
+          'content-type': 'application/json',
+        },
+        body: JSON.stringify(payload),
+      });
+
+      const data = await response.json();
+
+      if (!response.ok) {
+        throw new Error(data.message || `HTTP ${response.status}`);
+      }
+
+      console.log(`📧 Email sent to ${to} via Brevo API: ${data.messageId}`);
+      return { success: true, messageId: data.messageId, mode: 'brevo-api' };
+    } catch (error) {
+      console.error(`❌ Brevo API error for ${to}:`, error.message);
+      throw error;
     }
   }
 
@@ -76,8 +147,8 @@ class EmailService {
     const { email } = config;
     const from = `"${email.fromName}" <${email.from}>`;
 
-    // Development mode - log to console
-    if (!this.isConfigured) {
+    // Console/Development mode - log to console
+    if (this.provider === 'console' || !this.isConfigured) {
       console.log('\n' + '='.repeat(60));
       console.log('📧 EMAIL (Development Mode)');
       console.log('='.repeat(60));
@@ -95,6 +166,12 @@ class EmailService {
       };
     }
 
+    // Brevo HTTP API (recommended for Render)
+    if (this.provider === 'brevo-api') {
+      return this.sendViaBrevoApi({ to, subject, text, html });
+    }
+
+    // SMTP
     try {
       const info = await this.transporter.sendMail({
         from,
@@ -108,7 +185,7 @@ class EmailService {
       return { 
         success: true, 
         messageId: info.messageId,
-        mode: 'production' 
+        mode: 'smtp' 
       };
     } catch (error) {
       console.error(`❌ Failed to send email to ${to}:`, error.message);
@@ -356,19 +433,43 @@ The Stylio Team
   }
 
   /**
-   * Verify transporter connection
+   * Verify email service connection
    */
   async verifyConnection() {
-    if (!this.isConfigured) {
-      return { success: true, mode: 'development' };
+    if (this.provider === 'console' || !this.isConfigured) {
+      return { success: true, mode: 'development', provider: 'console' };
     }
 
+    if (this.provider === 'brevo-api') {
+      // Verify Brevo API key by making a simple request
+      try {
+        const response = await fetch('https://api.brevo.com/v3/account', {
+          headers: {
+            'accept': 'application/json',
+            'api-key': this.brevoApiKey,
+          },
+        });
+        
+        if (response.ok) {
+          const data = await response.json();
+          console.log(`✅ Brevo API connected: ${data.email}`);
+          return { success: true, mode: 'production', provider: 'brevo-api' };
+        } else {
+          throw new Error(`HTTP ${response.status}`);
+        }
+      } catch (error) {
+        console.error('❌ Brevo API verification failed:', error.message);
+        return { success: false, error: error.message, provider: 'brevo-api' };
+      }
+    }
+
+    // SMTP verification
     try {
       await this.transporter.verify();
-      return { success: true, mode: 'production' };
+      return { success: true, mode: 'production', provider: 'smtp' };
     } catch (error) {
-      console.error('❌ Email connection verification failed:', error.message);
-      return { success: false, error: error.message };
+      console.error('❌ SMTP connection verification failed:', error.message);
+      return { success: false, error: error.message, provider: 'smtp' };
     }
   }
 }
