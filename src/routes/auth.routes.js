@@ -7,6 +7,9 @@ import {
   getMe,
   verifyOtp,
   resendOtp,
+  forgotPassword,
+  verifyResetOtp,
+  resetPassword,
 } from '../controllers/auth.controller.js';
 import { authenticate } from '../middleware/auth.js';
 
@@ -16,6 +19,9 @@ const router = Router();
 router.post('/register', register);
 router.post('/login', login);
 router.post('/refresh-token', refreshToken);
+router.post('/forgot-password', forgotPassword);
+router.post('/verify-reset-otp', verifyResetOtp);
+router.post('/reset-password', resetPassword);
 
 // Protected routes
 router.use(authenticate);

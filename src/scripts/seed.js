@@ -23,60 +23,38 @@ const seedDatabase = async () => {
     console.log('✅ Connected to MongoDB');
 
     // =====================
-    // USERS
+    // USERS (Sample data - users register via OTP flow)
     // =====================
     
-    // Create test customer user
-    const existingUser = await User.findOne({ username: 'testuser' });
-    if (!existingUser) {
-      const testUser = await User.create({
-        username: 'testuser',
-        email: 'test@example.com',
-        password: 'test1234',
-        firstName: 'Test',
-        lastName: 'User',
-        phone: '1234567890',
-        role: 'customer',
-        isActive: true,
-        isEmailVerified: true,
-      });
-      console.log('✅ Test user created:', testUser.username);
-    } else {
-      console.log('ℹ️  Test user already exists');
-    }
-
-    // Create salon owner user
-    let ownerUser = await User.findOne({ username: 'salonowner' });
+    // Note: Real users will register through the app with email/OTP verification
+    // These are sample provider accounts for demo salons (no passwords - OTP login required)
+    
+    let ownerUser = await User.findOne({ email: 'owner@stylestudio.com' });
     if (!ownerUser) {
       ownerUser = await User.create({
-        username: 'salonowner',
-        email: 'owner@salon.com',
-        password: 'owner1234',
+        email: 'owner@stylestudio.com',
         firstName: 'Salon',
         lastName: 'Owner',
         phone: '9876543210',
         role: 'provider',
         isActive: true,
-        isEmailVerified: true,
+        isEmailVerified: false, // Requires OTP verification on first login
       });
-      console.log('✅ Salon owner user created');
+      console.log('✅ Sample salon owner created (OTP login required)');
     }
 
-    // Create home service provider user
-    let homeProviderUser = await User.findOne({ username: 'homeprovider' });
+    let homeProviderUser = await User.findOne({ email: 'priya@glamathome.com' });
     if (!homeProviderUser) {
       homeProviderUser = await User.create({
-        username: 'homeprovider',
-        email: 'home@provider.com',
-        password: 'home1234',
-        firstName: 'Home',
-        lastName: 'Provider',
+        email: 'priya@glamathome.com',
+        firstName: 'Priya',
+        lastName: 'Mehta',
         phone: '9876543211',
         role: 'provider',
         isActive: true,
-        isEmailVerified: true,
+        isEmailVerified: false, // Requires OTP verification on first login
       });
-      console.log('✅ Home provider user created');
+      console.log('✅ Sample home provider created (OTP login required)');
     }
 
     // =====================
@@ -486,19 +464,17 @@ const seedDatabase = async () => {
     // Create a third provider for the men's barbershop
     let provider3 = await ServiceProvider.findOne({ salon: gentsCut._id });
     if (!provider3) {
-      // First create a user for this provider
-      let barberUser = await User.findOne({ username: 'barber' });
+      // First create a user for this provider (no password - OTP login required)
+      let barberUser = await User.findOne({ email: 'vikram@gentscut.com' });
       if (!barberUser) {
         barberUser = await User.create({
-          username: 'barber',
-          email: 'barber@gentscut.com',
-          password: 'barber1234',
+          email: 'vikram@gentscut.com',
           firstName: 'Vikram',
           lastName: 'Singh',
           phone: '9876543240',
           role: 'provider',
           isActive: true,
-          isEmailVerified: true,
+          isEmailVerified: false, // Requires OTP verification on first login
         });
       }
 
@@ -808,25 +784,22 @@ const seedDatabase = async () => {
     // =====================
 
     console.log('\n🎉 V1 Database seeded successfully!');
-    console.log('\n📝 Test Credentials:');
-    console.log('   Customer:');
-    console.log('   - Username: testuser');
-    console.log('   - Password: test1234');
-    console.log('\n   Salon Owner:');
-    console.log('   - Username: salonowner');
-    console.log('   - Password: owner1234');
-    console.log('\n   Home Provider:');
-    console.log('   - Username: homeprovider');
-    console.log('   - Password: home1234');
-    console.log('\n📍 Test Locations:');
+    console.log('\n🔐 Authentication:');
+    console.log('   All users login via Email/Phone + OTP verification');
+    console.log('   No hardcoded passwords - secure OTP flow only');
+    console.log('\n📍 Sample Locations:');
     console.log('   - Mumbai: Andheri (72.8561, 19.1136), Bandra (72.8296, 19.0544)');
     console.log('   - Bangalore: Koramangala (77.6245, 12.9352)');
-    console.log('\n💇 Test Salons:');
+    console.log('\n💇 Sample Salons:');
     console.log('   - Style Studio (toSalon, unisex) - Andheri, Mumbai');
     console.log('   - Glam At Home (toHome, women) - Bandra, Mumbai');
     console.log('   - Gents Cut (both, men) - Koramangala, Bangalore');
-    console.log('\n🎬 Test Shorts/Reels:');
-    console.log('   - 8 sample shorts with YouTube/Instagram links');
+    console.log('\n👤 Sample Provider Emails (OTP login required):');
+    console.log('   - owner@stylestudio.com (Style Studio)');
+    console.log('   - priya@glamathome.com (Glam At Home)');
+    console.log('   - vikram@gentscut.com (Gents Cut)');
+    console.log('\n🎬 Sample Shorts/Reels:');
+    console.log('   - 10 sample shorts with video links');
     console.log('   - Categories: haircut, makeup, beard, nail, skincare, bridal');
 
   } catch (error) {

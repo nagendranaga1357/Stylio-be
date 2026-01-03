@@ -347,6 +347,8 @@ GET /api/health
 
 ## 🔐 Environment Variables
 
+### Core Settings
+
 | Variable | Required | Default | Description |
 |----------|----------|---------|-------------|
 | `NODE_ENV` | No | `development` | Environment mode |
@@ -359,6 +361,73 @@ GET /api/health
 | `FRONTEND_URL` | No | `*` | CORS allowed origin |
 | `RATE_LIMIT_MAX` | No | `100` | Max requests per window |
 | `RATE_LIMIT_WINDOW_MS` | No | `900000` | Rate limit window (15 min) |
+
+### 📧 Email Configuration (SMTP)
+
+| Variable | Required | Default | Description |
+|----------|----------|---------|-------------|
+| `SMTP_HOST` | No | - | SMTP server host |
+| `SMTP_PORT` | No | `587` | SMTP server port |
+| `SMTP_USER` | No | - | SMTP username/email |
+| `SMTP_PASS` | No | - | SMTP password or app password |
+| `SMTP_FROM` | No | - | Sender email address |
+| `SMTP_FROM_NAME` | No | `Stylio` | Sender display name |
+| `EMAIL_ENABLED` | No | `false` | Enable email sending |
+
+**Supported Free SMTP Providers:**
+
+| Provider | Free Tier | Setup |
+|----------|-----------|-------|
+| **Gmail** | Unlimited (personal use) | Enable 2FA → Create App Password at [Google Account](https://myaccount.google.com/apppasswords) |
+| **Brevo** | 300 emails/day | Sign up at [brevo.com](https://www.brevo.com) |
+| **Mailtrap** | 500 emails/month | Sign up at [mailtrap.io](https://mailtrap.io) |
+| **Mailgun** | 5,000 emails/month (3 months) | Sign up at [mailgun.com](https://www.mailgun.com) |
+
+**Example Gmail Configuration:**
+```env
+SMTP_HOST=smtp.gmail.com
+SMTP_PORT=587
+SMTP_USER=your-email@gmail.com
+SMTP_PASS=your-16-char-app-password
+SMTP_FROM=your-email@gmail.com
+SMTP_FROM_NAME=Stylio
+EMAIL_ENABLED=true
+```
+
+**Example Brevo Configuration:**
+```env
+SMTP_HOST=smtp-relay.brevo.com
+SMTP_PORT=587
+SMTP_USER=your-brevo-login
+SMTP_PASS=your-smtp-api-key
+SMTP_FROM=noreply@yourdomain.com
+SMTP_FROM_NAME=Stylio
+EMAIL_ENABLED=true
+```
+
+### 📱 SMS Configuration
+
+| Variable | Required | Default | Description |
+|----------|----------|---------|-------------|
+| `SMS_PROVIDER` | No | `console` | Provider: `console`, `textbelt`, `custom` |
+| `SMS_API_KEY` | No | - | SMS API key |
+| `SMS_API_URL` | No | - | Custom SMS API URL |
+| `SMS_ENABLED` | No | `false` | Enable SMS notifications |
+
+**SMS Providers:**
+
+| Provider | Free Tier | Notes |
+|----------|-----------|-------|
+| **Console** | Unlimited | Development mode - logs to console |
+| **TextBelt** | 1 SMS/day | [textbelt.com](https://textbelt.com) - Use `SMS_API_KEY=textbelt` |
+| **Custom** | Varies | Use any HTTP-based SMS API |
+
+### OTP Settings
+
+| Variable | Required | Default | Description |
+|----------|----------|---------|-------------|
+| `OTP_EXPIRES_MINUTES` | No | `15` | OTP validity period |
+| `OTP_CHANNEL` | No | `email` | Delivery: `email`, `sms`, `both` |
 
 ---
 
@@ -396,6 +465,10 @@ server/
 │   │   ├── search.routes.js
 │   │   └── ...
 │   │
+│   ├── services/         # Business logic services
+│   │   ├── email.service.js    # SMTP email sending
+│   │   └── notification.service.js # OTP, booking notifications
+│   │
 │   ├── utils/            # Helper functions
 │   │   └── searchHelpers.js
 │   │
@@ -415,15 +488,25 @@ server/
 
 ---
 
-## 🧪 Test Credentials
+## 🔐 Authentication
 
-After running `npm run seed`:
+This application uses **OTP-based authentication** (no passwords):
 
-| Role | Username | Password |
-|------|----------|----------|
-| Customer | `testuser` | `test1234` |
-| Salon Owner | `salonowner` | `owner1234` |
-| Home Provider | `homeprovider` | `home1234` |
+1. User enters email or phone number
+2. OTP is sent via email (and SMS in production)
+3. User verifies OTP to login/register
+
+### Sample Provider Emails (for testing)
+
+After running `npm run seed`, these sample provider accounts are available:
+
+| Role | Email | Login Method |
+|------|-------|--------------|
+| Salon Owner | `owner@stylestudio.com` | OTP via Email |
+| Home Provider | `priya@glamathome.com` | OTP via Email |
+| Barber | `vikram@gentscut.com` | OTP via Email |
+
+> **Note:** New customers register automatically when they verify OTP with a new email/phone.
 
 ---
 

@@ -2,6 +2,8 @@ import { asyncHandler, ApiError } from '../middleware/errorHandler.js';
 import { generateTokens, verifyRefreshToken } from '../middleware/auth.js';
 import User from '../models/User.js';
 import OTP from '../models/OTP.js';
+import notificationService from '../services/notification.service.js';
+import config from '../config/index.js';
 
 /**
  * @desc    Register new user
@@ -20,7 +22,7 @@ export const register = asyncHandler(async (req, res) => {
     throw new ApiError(400, 'User with this email or username already exists');
   }
 
-  // Create user
+  // Create user (email not verified yet)
   const user = await User.create({
     username,
     email,
@@ -28,7 +30,18 @@ export const register = asyncHandler(async (req, res) => {
     firstName,
     lastName,
     phone,
+    isEmailVerified: false,
   });
+
+  // Generate OTP for email verification
+  const otpRecord = await OTP.generateOTP(user, email);
+  
+  // Send OTP via email
+  try {
+    await notificationService.sendOtp(user, otpRecord.otp, 'email');
+  } catch (error) {
+    console.error('Failed to send registration OTP:', error.message);
+  }
 
   // Generate tokens
   const tokens = generateTokens(user._id);
@@ -39,10 +52,11 @@ export const register = asyncHandler(async (req, res) => {
 
   res.status(201).json({
     success: true,
-    message: 'User registered successfully',
+    message: 'Registration successful. Please verify your email with the OTP sent.',
     data: {
       user,
       tokens,
+      requiresVerification: true,
     },
   });
 });
@@ -71,12 +85,6 @@ export const login = asyncHandler(async (req, res) => {
   if (!user.isActive) {
     throw new ApiError(401, 'Account is deactivated');
   }
-
-  // Generate OTP for email verification
-  const otpRecord = await OTP.generateOTP(user, user.email);
-  console.log('============================================');
-  console.log(`OTP for ${user.email}: ${otpRecord.otp}`);
-  console.log('============================================');
 
   // Generate tokens
   const tokens = generateTokens(user._id);
@@ -194,14 +202,140 @@ export const verifyOtp = asyncHandler(async (req, res) => {
 export const resendOtp = asyncHandler(async (req, res) => {
   const otpRecord = await OTP.generateOTP(req.user, req.user.email);
 
-  // In production, send email here
-  console.log('============================================');
-  console.log(`OTP for ${req.user.email}: ${otpRecord.otp}`);
-  console.log('============================================');
+  // Send OTP via email/SMS using notification service
+  try {
+    const results = await notificationService.sendOtp(
+      req.user, 
+      otpRecord.otp, 
+      config.otp.channel
+    );
+    
+    const successChannels = results
+      .filter(r => r.success)
+      .map(r => r.channel)
+      .join(', ');
+
+    res.json({
+      success: true,
+      message: `OTP sent successfully via ${successChannels || 'notification service'}`,
+    });
+  } catch (error) {
+    console.error('Failed to send OTP:', error.message);
+    res.json({
+      success: true,
+      message: 'OTP generated. Check your email/phone.',
+    });
+  }
+});
+
+/**
+ * @desc    Forgot password - send OTP
+ * @route   POST /api/auth/forgot-password
+ * @access  Public
+ */
+export const forgotPassword = asyncHandler(async (req, res) => {
+  const { email } = req.body;
+
+  if (!email) {
+    throw new ApiError(400, 'Please provide your email address');
+  }
+
+  // Find user by email
+  const user = await User.findOne({ email: email.toLowerCase() });
+
+  if (!user) {
+    // Don't reveal if user exists or not for security
+    res.json({
+      success: true,
+      message: 'If an account exists with this email, you will receive a password reset OTP.',
+    });
+    return;
+  }
+
+  // Generate OTP for password reset
+  const otpRecord = await OTP.generateOTP(user, email, 'password_reset');
+  
+  // Send OTP via email
+  try {
+    await notificationService.sendOtp(user, otpRecord.otp, 'email');
+  } catch (error) {
+    console.error('Failed to send password reset OTP:', error.message);
+  }
 
   res.json({
     success: true,
-    message: 'OTP sent successfully',
+    message: 'If an account exists with this email, you will receive a password reset OTP.',
+  });
+});
+
+/**
+ * @desc    Verify forgot password OTP
+ * @route   POST /api/auth/verify-reset-otp
+ * @access  Public
+ */
+export const verifyResetOtp = asyncHandler(async (req, res) => {
+  const { email, otp } = req.body;
+
+  if (!email || !otp) {
+    throw new ApiError(400, 'Email and OTP are required');
+  }
+
+  const { isValid, user } = await OTP.verifyOTP(email, otp);
+
+  if (!isValid || !user) {
+    throw new ApiError(400, 'Invalid or expired OTP');
+  }
+
+  // Generate a temporary reset token (valid for 10 minutes)
+  const resetToken = generateTokens(user._id, '10m').accessToken;
+
+  res.json({
+    success: true,
+    message: 'OTP verified successfully',
+    data: {
+      resetToken,
+    },
+  });
+});
+
+/**
+ * @desc    Reset password with token
+ * @route   POST /api/auth/reset-password
+ * @access  Public (with reset token)
+ */
+export const resetPassword = asyncHandler(async (req, res) => {
+  const { resetToken, newPassword } = req.body;
+
+  if (!resetToken || !newPassword) {
+    throw new ApiError(400, 'Reset token and new password are required');
+  }
+
+  if (newPassword.length < 8) {
+    throw new ApiError(400, 'Password must be at least 8 characters');
+  }
+
+  // Verify reset token
+  let decoded;
+  try {
+    decoded = verifyRefreshToken(resetToken); // Using same JWT verification
+  } catch (error) {
+    throw new ApiError(400, 'Invalid or expired reset token');
+  }
+
+  // Find user
+  const user = await User.findById(decoded.id);
+
+  if (!user) {
+    throw new ApiError(400, 'Invalid reset token');
+  }
+
+  // Update password
+  user.password = newPassword;
+  await user.save();
+
+  res.json({
+    success: true,
+    message: 'Password reset successfully. You can now login with your new password.',
   });
 });
 

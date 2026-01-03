@@ -10,6 +10,7 @@ import mongoose from 'mongoose';
 import config from './config/index.js';
 import connectDB from './config/database.js';
 import { errorHandler, notFoundHandler } from './middleware/errorHandler.js';
+import { emailService } from './services/index.js';
 
 // Import routes
 import authRoutes from './routes/auth.routes.js';
@@ -109,6 +110,10 @@ app.get('/api/health', async (req, res) => {
       total: Math.round(process.memoryUsage().heapTotal / 1024 / 1024) + 'MB',
     },
     database: mongoose.connection.readyState === 1 ? 'connected' : 'disconnected',
+    services: {
+      email: config.email.enabled ? 'configured' : 'development',
+      sms: config.sms.enabled ? config.sms.provider : 'development',
+    },
   };
 
   try {
@@ -121,6 +126,37 @@ app.get('/api/health', async (req, res) => {
     res.status(503).json(healthcheck);
   }
 });
+
+// Email test endpoint (development only)
+if (config.env === 'development') {
+  app.post('/api/test/email', async (req, res) => {
+    const { to, subject, message } = req.body;
+    
+    if (!to) {
+      return res.status(400).json({ success: false, error: 'Email address required' });
+    }
+
+    try {
+      const result = await emailService.sendEmail({
+        to,
+        subject: subject || 'Test Email from Stylio',
+        text: message || 'This is a test email from Stylio API.',
+        html: `<h1>Test Email</h1><p>${message || 'This is a test email from Stylio API.'}</p>`,
+      });
+
+      res.json({
+        success: true,
+        message: 'Test email sent',
+        result,
+      });
+    } catch (error) {
+      res.status(500).json({
+        success: false,
+        error: error.message,
+      });
+    }
+  });
+}
 
 // API Routes
 app.use('/api/auth', authRoutes);

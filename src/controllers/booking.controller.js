@@ -3,6 +3,8 @@ import Booking from '../models/Booking.js';
 import Salon from '../models/Salon.js';
 import { Service } from '../models/Service.js';
 import Notification from '../models/Notification.js';
+import User from '../models/User.js';
+import { notificationService } from '../services/index.js';
 
 /**
  * @desc    Get user's bookings
@@ -144,6 +146,19 @@ export const createBooking = asyncHandler(async (req, res) => {
     relatedBooking: booking._id,
   });
 
+  // Send email/SMS notification to customer
+  try {
+    const user = await User.findById(req.user._id);
+    await notificationService.sendBookingNotification(user, {
+      ...populatedBooking.toObject(),
+      salon: { name: salon.name },
+      services: services.map(s => ({ name: s.name })),
+    });
+  } catch (error) {
+    console.error('Failed to send booking notification:', error.message);
+    // Continue even if notification fails
+  }
+
   res.status(201).json({
     success: true,
     message: 'Booking created successfully',
@@ -187,6 +202,15 @@ export const cancelBooking = asyncHandler(async (req, res) => {
     notificationType: 'booking_cancelled',
     relatedBooking: booking._id,
   });
+
+  // Send email/SMS cancellation notification
+  try {
+    const user = await User.findById(req.user._id);
+    const populatedBooking = await Booking.findById(booking._id).populate('salon', 'name');
+    await notificationService.sendBookingCancellation(user, populatedBooking, reason);
+  } catch (error) {
+    console.error('Failed to send cancellation notification:', error.message);
+  }
 
   res.json({
     success: true,
