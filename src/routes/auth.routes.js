@@ -10,6 +10,8 @@ import {
   forgotPassword,
   verifyResetOtp,
   resetPassword,
+  savePushToken,
+  removePushToken,
 } from '../controllers/auth.controller.js';
 import { authenticate } from '../middleware/auth.js';
 
@@ -29,6 +31,8 @@ router.post('/logout', logout);
 router.get('/me', getMe);
 router.post('/verify-otp', verifyOtp);
 router.post('/resend-otp', resendOtp);
+router.post('/push-token', savePushToken);
+router.delete('/push-token', removePushToken);
 
 export default router;
 

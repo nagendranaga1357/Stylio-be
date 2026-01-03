@@ -1,13 +1,14 @@
 import emailService from './email.service.js';
+import pushService from './push.service.js';
 import config from '../config/index.js';
 
 /**
  * Notification Service
  * 
  * Unified service for sending notifications via:
- * - Email (using SMTP)
+ * - Email (using SMTP or Brevo API)
  * - SMS (using console in dev, or external SMS API in production)
- * - Push Notifications (future integration)
+ * - Push Notifications (using Expo Push - free & unlimited)
  * 
  * In development mode, all notifications are logged to console.
  */
@@ -173,24 +174,24 @@ class NotificationService {
   async sendBookingNotification(user, booking) {
     const results = [];
 
+    const bookingDetails = {
+      salonName: booking.salon?.name || 'Salon',
+      bookingNumber: booking.bookingNumber,
+      date: new Date(booking.bookingDate).toLocaleDateString('en-IN', {
+        weekday: 'long',
+        year: 'numeric',
+        month: 'long',
+        day: 'numeric',
+      }),
+      time: booking.bookingTime,
+      services: booking.services.map(s => ({
+        name: s.service?.name || s.name || 'Service',
+      })),
+      totalAmount: booking.finalAmount || booking.totalAmount,
+    };
+
     // Email notification
     try {
-      const bookingDetails = {
-        salonName: booking.salon?.name || 'Salon',
-        bookingNumber: booking.bookingNumber,
-        date: new Date(booking.bookingDate).toLocaleDateString('en-IN', {
-          weekday: 'long',
-          year: 'numeric',
-          month: 'long',
-          day: 'numeric',
-        }),
-        time: booking.bookingTime,
-        services: booking.services.map(s => ({
-          name: s.service?.name || s.name || 'Service',
-        })),
-        totalAmount: booking.finalAmount || booking.totalAmount,
-      };
-
       const emailResult = await emailService.sendBookingConfirmation(
         user.email,
         bookingDetails
@@ -199,6 +200,23 @@ class NotificationService {
     } catch (error) {
       console.error('Failed to send booking email:', error.message);
       results.push({ channel: 'email', success: false, error: error.message });
+    }
+
+    // Push notification
+    try {
+      const pushResult = await pushService.sendBookingConfirmation(
+        user._id || user.id,
+        {
+          id: booking._id || booking.id,
+          salonName: bookingDetails.salonName,
+          date: bookingDetails.date,
+          time: bookingDetails.time,
+        }
+      );
+      results.push({ channel: 'push', ...pushResult });
+    } catch (error) {
+      console.error('Failed to send booking push:', error.message);
+      results.push({ channel: 'push', success: false, error: error.message });
     }
 
     // SMS notification (optional)
@@ -221,11 +239,27 @@ class NotificationService {
    * Send booking reminder
    * @param {Object} user - User object
    * @param {Object} booking - Booking details
+   * @param {number} minutesBefore - Minutes before appointment
    */
-  async sendBookingReminder(user, booking) {
+  async sendBookingReminder(user, booking, minutesBefore = 60) {
     const message = `Reminder: Your appointment at ${booking.salon?.name} is tomorrow at ${booking.bookingTime}. Booking #${booking.bookingNumber} - Stylio`;
 
     const results = [];
+
+    // Send push notification (most immediate)
+    try {
+      const pushResult = await pushService.sendBookingReminder(
+        user._id || user.id,
+        {
+          id: booking._id || booking.id,
+          salonName: booking.salon?.name || 'Salon',
+        },
+        minutesBefore
+      );
+      results.push({ channel: 'push', ...pushResult });
+    } catch (error) {
+      results.push({ channel: 'push', success: false, error: error.message });
+    }
 
     // Send email reminder
     try {
@@ -257,22 +291,56 @@ class NotificationService {
    */
   async sendBookingCancellation(user, booking, reason = '') {
     const message = `Your booking #${booking.bookingNumber} has been cancelled.${reason ? ` Reason: ${reason}` : ''} - Stylio`;
+    const results = [];
 
+    // Push notification
     try {
-      await emailService.sendEmail({
+      const pushResult = await pushService.sendBookingCancellation(
+        user._id || user.id,
+        {
+          id: booking._id || booking.id,
+          salonName: booking.salon?.name || 'Salon',
+          date: booking.bookingDate,
+        }
+      );
+      results.push({ channel: 'push', ...pushResult });
+    } catch (error) {
+      results.push({ channel: 'push', success: false, error: error.message });
+    }
+
+    // Email notification
+    try {
+      const emailResult = await emailService.sendEmail({
         to: user.email,
         subject: `Booking Cancelled #${booking.bookingNumber}`,
         text: message,
         html: `<p>${message}</p>`,
       });
-      
-      if (user.phone) {
-        await this.sendSms(user.phone, message);
-      }
-
-      return { success: true };
+      results.push({ channel: 'email', ...emailResult });
     } catch (error) {
-      console.error('Failed to send cancellation notification:', error.message);
+      results.push({ channel: 'email', success: false, error: error.message });
+    }
+      
+    // SMS notification
+    if (user.phone) {
+      const smsResult = await this.sendSms(user.phone, message);
+      results.push({ channel: 'sms', ...smsResult });
+    }
+
+    return results;
+  }
+
+  /**
+   * Send promotional notification to multiple users
+   * @param {string[]} userIds - Array of user IDs
+   * @param {Object} promo - Promo details
+   */
+  async sendPromoNotification(userIds, promo) {
+    try {
+      const result = await pushService.sendPromoNotification(userIds, promo);
+      return result;
+    } catch (error) {
+      console.error('Failed to send promo notification:', error.message);
       return { success: false, error: error.message };
     }
   }

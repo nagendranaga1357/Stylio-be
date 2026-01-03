@@ -85,6 +85,15 @@ const userSchema = new mongoose.Schema({
     type: String,
     select: false,
   },
+  // Push notification token (Expo)
+  pushToken: {
+    type: String,
+    trim: true,
+  },
+  pushPlatform: {
+    type: String,
+    enum: ['ios', 'android', 'web'],
+  },
 }, {
   timestamps: true,
   toJSON: {

@@ -339,3 +339,42 @@ export const resetPassword = asyncHandler(async (req, res) => {
   });
 });
 
+/**
+ * @desc    Save push notification token
+ * @route   POST /api/auth/push-token
+ * @access  Private
+ */
+export const savePushToken = asyncHandler(async (req, res) => {
+  const { pushToken, platform } = req.body;
+
+  if (!pushToken) {
+    throw new ApiError(400, 'Push token is required');
+  }
+
+  // Update user's push token
+  req.user.pushToken = pushToken;
+  req.user.pushPlatform = platform || 'android';
+  await req.user.save();
+
+  res.json({
+    success: true,
+    message: 'Push token saved successfully',
+  });
+});
+
+/**
+ * @desc    Remove push notification token
+ * @route   DELETE /api/auth/push-token
+ * @access  Private
+ */
+export const removePushToken = asyncHandler(async (req, res) => {
+  req.user.pushToken = undefined;
+  req.user.pushPlatform = undefined;
+  await req.user.save();
+
+  res.json({
+    success: true,
+    message: 'Push token removed successfully',
+  });
+});
+
