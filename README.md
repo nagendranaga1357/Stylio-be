@@ -1,6 +1,6 @@
 # 🌟 Stylio API
 
-**Stylio** is a modern Salon & Home Services booking platform backend built with Node.js, Express.js, and MongoDB.
+**Stylio** is a Salon & Home Services booking backend built with Node.js, Express.js, and MongoDB.
 
 ![Node.js](https://img.shields.io/badge/Node.js-18+-green)
 ![Express.js](https://img.shields.io/badge/Express.js-4.x-lightgrey)
@@ -13,11 +13,13 @@
 
 - [Features](#-features)
 - [Tech Stack](#-tech-stack)
+- [Architecture Overview](#-architecture-overview)
 - [Quick Start](#-quick-start)
-- [Deploy to Render](#-deploy-to-render)
 - [API Documentation](#-api-documentation)
 - [Environment Variables](#-environment-variables)
+- [Deploy to Render](#-deploy-to-render)
 - [Project Structure](#-project-structure)
+- [Security & Scalability Notes](#-security--scalability-notes)
 
 ---
 
@@ -26,21 +28,21 @@
 ### V1 - Search & Discovery
 - 🏠 **To Home / To Salon** - Dual service modes
 - 👨‍👩‍👧 **Audience Targeting** - Men, Women, Kids, Unisex
-- 📍 **Geo-based Search** - Find services near you
+- 📍 **Geo-based Search** - Nearby salons/providers with radius filters
 - 🔍 **Text Search** - Search by name, tags, description
-- ⭐ **Rating & Price Filters** - Refine your search
-- 📄 **Pagination & Sorting** - Efficient data loading
+- ⭐ **Rating & Price Filters** - Refine discovery
+- 📄 **Pagination & Sorting** - Consistent list responses
 
 ### Core Features
-- 🔐 JWT Authentication with refresh tokens
-- 📱 OTP Verification
-- 💇 Salon & Service Management
-- 📅 Booking System
-- ⭐ Reviews & Ratings
+- 🔐 JWT authentication (access + refresh tokens)
+- 📱 OTP flows for account verification and password reset
+- 💇 Salon, service, and provider discovery
+- 📅 Booking lifecycle (pending to completed/no-show/cancelled)
+- ⭐ Reviews & ratings (salon and provider)
 - ❤️ Favorites
-- 🔔 Notifications
-- 🎬 Shorts/Reels
-- 🎟️ Promo Codes
+- 🔔 In-app notifications + optional email/SMS/push notifications
+- 🎬 Shorts/Reels module (likes, comments, bookmarks, follows)
+- 🎟️ Promo code validation
 
 ---
 
@@ -50,47 +52,65 @@
 |------------|---------|
 | **Node.js 18+** | Runtime |
 | **Express.js** | Web Framework |
-| **MongoDB** | Database |
-| **Mongoose** | ODM |
-| **JWT** | Authentication |
-| **Zod** | Validation |
-| **Helmet** | Security |
-| **Morgan** | Logging |
+| **MongoDB + Mongoose** | Database + ODM |
+| **JWT** | Auth tokens |
+| **Zod** | Query validation (search APIs) |
+| **Helmet** | Security headers |
+| **express-rate-limit** | Rate limiting |
+| **Multer** | Avatar upload handling |
+| **Nodemailer / Brevo API** | Email delivery |
+
+---
+
+## 🧱 Architecture Overview
+
+- **Entry point:** `src/server.js`
+- **Layering:** `routes -> controllers -> models/services`
+- **Config:** central env parsing in `src/config/index.js`
+- **Database:** MongoDB connection via `src/config/database.js`
+- **Middleware:** JWT auth, optional auth, Zod validation, global error handler
+- **Search:** reusable query builders in `src/utils/searchHelpers.js`
+- **Integrations:** SMTP/Brevo email, TextBelt/custom SMS, Expo push notifications
 
 ---
 
 ## 🚀 Quick Start
 
 ### Prerequisites
-
 - Node.js 18+
 - MongoDB (local or Atlas)
-- Git
 
 ### Installation
 
 ```bash
-# Clone the repository
 git clone <your-repo-url>
-cd server
-
-# Install dependencies
+cd Stylio-be
 npm install
+```
 
-# Create environment file
-cp .env.example .env
-# Edit .env with your values
+Create `.env` in project root (there is no `.env.example` in this repo):
 
-# Seed the database (optional)
-npm run seed
+```env
+NODE_ENV=development
+PORT=5000
+MONGODB_URI=mongodb://localhost:27017/salon_booking
+JWT_SECRET=replace-with-strong-secret
+JWT_REFRESH_SECRET=replace-with-strong-refresh-secret
+```
 
-# Start development server
+Run the app:
+
+```bash
 npm run dev
 ```
 
-The API will be running at `http://localhost:5000`
+Optional sample data:
 
-### Health Check
+```bash
+npm run seed
+```
+
+Health check:
 
 ```bash
 curl http://localhost:5000/api/health
@@ -98,197 +118,60 @@ curl http://localhost:5000/api/health
 
 ---
 
-## 🌐 Deploy to Render
-
-### Step 1: Set Up MongoDB Atlas (Free Tier)
-
-1. Go to [MongoDB Atlas](https://www.mongodb.com/cloud/atlas)
-2. Create a free account / Sign in
-3. Create a new **Free Shared Cluster**
-4. Click **"Connect"** → **"Connect your application"**
-5. Copy the connection string:
-   ```
-   mongodb+srv://<username>:<password>@<cluster>.mongodb.net/stylio?retryWrites=true&w=majority
-   ```
-6. Replace `<username>` and `<password>` with your credentials
-
-> ⚠️ **Important**: In Atlas, go to **Network Access** → Add IP `0.0.0.0/0` to allow all IPs (required for Render)
-
----
-
-### Step 2: Push Code to GitHub
-
-```bash
-# Initialize git (if not already)
-git init
-
-# Create .gitignore
-cat > .gitignore << EOF
-node_modules/
-.env
-.DS_Store
-uploads/
-*.log
-EOF
-
-# Add and commit
-git add .
-git commit -m "Initial commit - Stylio API"
-
-# Push to GitHub
-git remote add origin https://github.com/<your-username>/stylio-api.git
-git branch -M main
-git push -u origin main
-```
-
----
-
-### Step 3: Deploy on Render
-
-#### Option A: Manual Setup (Recommended for beginners)
-
-1. Go to [Render Dashboard](https://dashboard.render.com/)
-2. Click **"New +"** → **"Web Service"**
-3. Connect your GitHub account and select your repository
-4. Configure the service:
-
-   | Setting | Value |
-   |---------|-------|
-   | **Name** | `stylio-api` |
-   | **Region** | Oregon (US West) |
-   | **Branch** | `main` |
-   | **Runtime** | Node |
-   | **Build Command** | `npm install` |
-   | **Start Command** | `npm start` |
-   | **Plan** | Free |
-
-5. Add **Environment Variables** (click "Advanced"):
-
-   | Key | Value |
-   |-----|-------|
-   | `NODE_ENV` | `production` |
-   | `PORT` | `10000` |
-   | `MONGODB_URI` | `mongodb+srv://...` (your Atlas URI) |
-   | `JWT_SECRET` | (generate: see below) |
-   | `JWT_REFRESH_SECRET` | (generate: see below) |
-   | `JWT_EXPIRES_IN` | `7d` |
-   | `JWT_REFRESH_EXPIRES_IN` | `30d` |
-   | `FRONTEND_URL` | `*` |
-   | `RATE_LIMIT_MAX` | `200` |
-
-6. Click **"Create Web Service"**
-
-#### Option B: Blueprint (Auto-configuration)
-
-If you have `render.yaml` in your repo:
-
-1. Go to Render Dashboard
-2. Click **"New +"** → **"Blueprint"**
-3. Connect your repository
-4. Render will auto-detect `render.yaml`
-5. Add the **MONGODB_URI** environment variable manually
-
----
-
-### Step 4: Generate Secure Secrets
-
-Run this in your terminal to generate JWT secrets:
-
-```bash
-# Generate JWT_SECRET
-node -e "console.log('JWT_SECRET=' + require('crypto').randomBytes(64).toString('hex'))"
-
-# Generate JWT_REFRESH_SECRET
-node -e "console.log('JWT_REFRESH_SECRET=' + require('crypto').randomBytes(64).toString('hex'))"
-```
-
-Copy the output and paste into Render's environment variables.
-
----
-
-### Step 5: Seed Production Database
-
-After deployment, seed your database:
-
-```bash
-# Option 1: Use Render Shell
-# Go to Render Dashboard → Your Service → Shell
-npm run seed
-
-# Option 2: Run locally with production database
-MONGODB_URI="your-atlas-uri" npm run seed
-```
-
----
-
-### Step 6: Verify Deployment
-
-Your API will be available at:
-```
-https://stylio-api.onrender.com
-```
-
-Test the endpoints:
-
-```bash
-# Health check
-curl https://stylio-api.onrender.com/api/health
-
-# Get salons
-curl https://stylio-api.onrender.com/api/salons
-
-# Search with geo
-curl "https://stylio-api.onrender.com/api/salons?lat=19.0760&lng=72.8777&radius=10000"
-```
-
----
-
 ## 📚 API Documentation
 
 ### Base URL
-- **Local**: `http://localhost:5000/api`
-- **Production**: `https://stylio-api.onrender.com/api`
+- **Local:** `http://localhost:5000/api`
 
 ### Authentication
 ```http
-POST /api/auth/register
-POST /api/auth/login
-POST /api/auth/logout
-POST /api/auth/refresh-token
-GET  /api/auth/me
+POST   /api/auth/register
+POST   /api/auth/login
+POST   /api/auth/refresh-token
+POST   /api/auth/forgot-password
+POST   /api/auth/verify-reset-otp
+POST   /api/auth/reset-password
+POST   /api/auth/logout              (auth)
+GET    /api/auth/me                  (auth)
+POST   /api/auth/verify-otp          (auth)
+POST   /api/auth/resend-otp          (auth)
+POST   /api/auth/push-token          (auth)
+DELETE /api/auth/push-token          (auth)
 ```
 
-### Salons (V1 Search)
+### Users
+```http
+GET    /api/users/profile                     (auth)
+PATCH  /api/users/profile                     (auth)
+PATCH  /api/users/password                    (auth)
+POST   /api/users/avatar                      (auth)
+GET    /api/users/addresses                   (auth)
+POST   /api/users/addresses                   (auth)
+PATCH  /api/users/addresses/:addressId        (auth)
+DELETE /api/users/addresses/:addressId        (auth)
+DELETE /api/users/account                     (auth)
+```
+
+### Location
+```http
+GET /api/cities
+GET /api/cities/:id
+GET /api/areas
+GET /api/areas/:id
+```
+
+### Salons
 ```http
 GET /api/salons
+GET /api/salons/nearby
 GET /api/salons/:id
 GET /api/salons/:id/services
 GET /api/salons/:id/providers
 GET /api/salons/:id/reviews
-GET /api/salons/nearby
+GET /api/salons/:id/gallery
 ```
 
-**Query Parameters:**
-| Parameter | Type | Description |
-|-----------|------|-------------|
-| `lat` | number | Latitude for geo search |
-| `lng` | number | Longitude for geo search |
-| `radius` | number | Search radius in meters (default: 5000) |
-| `cityId` | string | Filter by city |
-| `areaId` | string | Filter by area |
-| `q` | string | Text search query |
-| `mode` | string | `toSalon`, `toHome`, or `both` |
-| `audience` | string | `men`, `women`, `kids`, or `unisex` |
-| `minRating` | number | Minimum rating (0-5) |
-| `maxRating` | number | Maximum rating (0-5) |
-| `minPriceLevel` | number | Minimum price level (1-4) |
-| `maxPriceLevel` | number | Maximum price level (1-4) |
-| `page` | number | Page number (default: 1) |
-| `limit` | number | Items per page (default: 20) |
-| `sortBy` | string | `distance`, `rating`, `price`, `popular` |
-| `sortOrder` | string | `asc` or `desc` |
-
-### Services (V1 Search)
+### Services
 ```http
 GET /api/services
 GET /api/services/:id
@@ -298,49 +181,95 @@ GET /api/services/popular
 GET /api/services/search
 ```
 
-### Unified Search
+### Providers
 ```http
-GET /api/search?q=haircut&type=all
-GET /api/search/suggestions?q=hair
+GET /api/providers
+GET /api/providers/:id
+GET /api/providers/:id/reviews
+GET /api/providers/:id/availability
+```
+
+### Search
+```http
+GET /api/search
+GET /api/search/suggestions
 GET /api/search/trending
 ```
 
 ### Bookings
 ```http
-GET  /api/bookings
-GET  /api/bookings/:id
-POST /api/bookings
-POST /api/bookings/:id/cancel
-GET  /api/bookings/upcoming
-GET  /api/bookings/past
-GET  /api/bookings/available-slots
+GET   /api/bookings/available-slots
+GET   /api/bookings                      (auth)
+GET   /api/bookings/upcoming             (auth)
+GET   /api/bookings/past                 (auth)
+GET   /api/bookings/:id                  (auth)
+POST  /api/bookings                      (auth)
+POST  /api/bookings/:id/cancel           (auth)
+POST  /api/bookings/:id/confirm          (auth)
+POST  /api/bookings/:id/complete         (auth)
+POST  /api/bookings/:id/no-show          (auth)
+PATCH /api/bookings/:id/status           (auth)
 ```
 
-### Other Endpoints
+### Reviews
 ```http
-# User Profile
-GET   /api/users/profile
-PATCH /api/users/profile
-PATCH /api/users/password
+GET    /api/reviews/salon
+POST   /api/reviews/salon              (auth)
+GET    /api/reviews/provider
+POST   /api/reviews/provider           (auth)
+DELETE /api/reviews/:type/:id          (auth)
+```
 
-# Favorites
-GET  /api/favorites
-POST /api/favorites
-POST /api/favorites/toggle
+### Favorites
+```http
+GET    /api/favorites                    (auth)
+GET    /api/favorites/check/:salonId     (auth)
+POST   /api/favorites                    (auth)
+POST   /api/favorites/toggle             (auth)
+DELETE /api/favorites/salon/:salonId     (auth)
+DELETE /api/favorites/:id                (auth)
+```
 
-# Notifications
-GET  /api/notifications
-POST /api/notifications/read-all
+### Notifications
+```http
+GET    /api/notifications            (auth)
+GET    /api/notifications/unread     (auth)
+POST   /api/notifications/read-all   (auth)
+POST   /api/notifications/:id/read   (auth)
+DELETE /api/notifications/:id        (auth)
+```
 
-# Reviews
-GET  /api/reviews/salon
-POST /api/reviews/salon
-
-# Promo Codes
+### Promo Codes
+```http
+GET  /api/promo-codes
+GET  /api/promo-codes/active
+GET  /api/promo-codes/:code
 POST /api/promo-codes/validate
+```
 
-# Health
-GET /api/health
+### Shorts
+```http
+GET  /api/shorts
+GET  /api/shorts/trending
+GET  /api/shorts/bookmarks                    (auth)
+GET  /api/shorts/:id
+GET  /api/shorts/:id/view
+POST /api/shorts/:id/view
+POST /api/shorts/:id/share
+GET  /api/shorts/:id/comments
+POST /api/shorts/:id/comments                 (auth)
+POST /api/shorts/:id/like                     (auth)
+POST /api/shorts/:id/bookmark                 (auth)
+POST /api/shorts/comments/:commentId/like     (auth)
+GET  /api/shorts/comments/:commentId/replies
+POST /api/shorts/creators/:creatorUsername/follow (auth)
+```
+
+### System
+```http
+GET  /
+GET  /api/health
+POST /api/test/email         (development only)
 ```
 
 ---
@@ -349,183 +278,113 @@ GET /api/health
 
 ### Core Settings
 
-| Variable | Required | Default | Description |
-|----------|----------|---------|-------------|
+| Variable | Required in Production | Default | Description |
+|----------|------------------------|---------|-------------|
 | `NODE_ENV` | No | `development` | Environment mode |
 | `PORT` | No | `5000` | Server port |
-| `MONGODB_URI` | **Yes** | - | MongoDB connection string |
-| `JWT_SECRET` | **Yes** | - | JWT signing secret |
-| `JWT_REFRESH_SECRET` | **Yes** | - | Refresh token secret |
+| `MONGODB_URI` | Yes | `mongodb://localhost:27017/salon_booking` | MongoDB connection string |
+| `JWT_SECRET` | Yes | - | Access token signing secret |
+| `JWT_REFRESH_SECRET` | Yes | - | Refresh token signing secret |
 | `JWT_EXPIRES_IN` | No | `7d` | Access token expiry |
 | `JWT_REFRESH_EXPIRES_IN` | No | `30d` | Refresh token expiry |
 | `FRONTEND_URL` | No | `*` | CORS allowed origin |
 | `RATE_LIMIT_MAX` | No | `100` | Max requests per window |
-| `RATE_LIMIT_WINDOW_MS` | No | `900000` | Rate limit window (15 min) |
-
-### 📧 Email Configuration (SMTP)
-
-| Variable | Required | Default | Description |
-|----------|----------|---------|-------------|
-| `SMTP_HOST` | No | - | SMTP server host |
-| `SMTP_PORT` | No | `587` | SMTP server port |
-| `SMTP_USER` | No | - | SMTP username/email |
-| `SMTP_PASS` | No | - | SMTP password or app password |
-| `SMTP_FROM` | No | - | Sender email address |
-| `SMTP_FROM_NAME` | No | `Stylio` | Sender display name |
-| `EMAIL_ENABLED` | No | `false` | Enable email sending |
-
-**Supported Free SMTP Providers:**
-
-| Provider | Free Tier | Setup |
-|----------|-----------|-------|
-| **Gmail** | Unlimited (personal use) | Enable 2FA → Create App Password at [Google Account](https://myaccount.google.com/apppasswords) |
-| **Brevo** | 300 emails/day | Sign up at [brevo.com](https://www.brevo.com) |
-| **Mailtrap** | 500 emails/month | Sign up at [mailtrap.io](https://mailtrap.io) |
-| **Mailgun** | 5,000 emails/month (3 months) | Sign up at [mailgun.com](https://www.mailgun.com) |
-
-**Example Gmail Configuration:**
-```env
-SMTP_HOST=smtp.gmail.com
-SMTP_PORT=587
-SMTP_USER=your-email@gmail.com
-SMTP_PASS=your-16-char-app-password
-SMTP_FROM=your-email@gmail.com
-SMTP_FROM_NAME=Stylio
-EMAIL_ENABLED=true
-```
-
-**Example Brevo Configuration:**
-```env
-SMTP_HOST=smtp-relay.brevo.com
-SMTP_PORT=587
-SMTP_USER=your-brevo-login
-SMTP_PASS=your-smtp-api-key
-SMTP_FROM=noreply@yourdomain.com
-SMTP_FROM_NAME=Stylio
-EMAIL_ENABLED=true
-```
-
-### 📱 SMS Configuration
-
-| Variable | Required | Default | Description |
-|----------|----------|---------|-------------|
-| `SMS_PROVIDER` | No | `console` | Provider: `console`, `textbelt`, `custom` |
-| `SMS_API_KEY` | No | - | SMS API key |
-| `SMS_API_URL` | No | - | Custom SMS API URL |
-| `SMS_ENABLED` | No | `false` | Enable SMS notifications |
-
-**SMS Providers:**
-
-| Provider | Free Tier | Notes |
-|----------|-----------|-------|
-| **Console** | Unlimited | Development mode - logs to console |
-| **TextBelt** | 1 SMS/day | [textbelt.com](https://textbelt.com) - Use `SMS_API_KEY=textbelt` |
-| **Custom** | Varies | Use any HTTP-based SMS API |
-
-### OTP Settings
-
-| Variable | Required | Default | Description |
-|----------|----------|---------|-------------|
+| `RATE_LIMIT_WINDOW_MS` | No | `900000` | Rate limit window (ms) |
 | `OTP_EXPIRES_MINUTES` | No | `15` | OTP validity period |
-| `OTP_CHANNEL` | No | `email` | Delivery: `email`, `sms`, `both` |
+| `OTP_CHANNEL` | No | `email` | OTP channel: `email`, `sms`, `both` |
+
+### Email
+
+| Variable | Required | Default | Description |
+|----------|----------|---------|-------------|
+| `EMAIL_PROVIDER` | No | auto-detect | `brevo-api`, `smtp`, or `console` |
+| `BREVO_API_KEY` | No | - | Brevo API key (HTTP email provider) |
+| `SMTP_HOST` | No | - | SMTP host |
+| `SMTP_PORT` | No | `587` | SMTP port |
+| `SMTP_USER` | No | - | SMTP username |
+| `SMTP_PASS` | No | - | SMTP password |
+| `SMTP_FROM` | No | `SMTP_USER`/fallback | Sender email |
+| `SMTP_FROM_NAME` | No | `Stylio` | Sender name |
+| `EMAIL_ENABLED` | No | inferred | Email toggle flag |
+
+### SMS
+
+| Variable | Required | Default | Description |
+|----------|----------|---------|-------------|
+| `SMS_PROVIDER` | No | `console` | `console`, `textbelt`, `custom` |
+| `SMS_API_KEY` | No | - | SMS provider API key |
+| `SMS_API_URL` | No | - | Custom SMS API endpoint |
+| `SMS_ENABLED` | No | `false` | Enable SMS sending |
+
+### Uploads
+
+| Variable | Required | Default | Description |
+|----------|----------|---------|-------------|
+| `MAX_FILE_SIZE` | No | `5242880` | Avatar/file size limit in bytes |
+| `UPLOAD_DIR` | No | `uploads` | Upload directory |
+
+---
+
+## 🌐 Deploy to Render
+
+This repo includes `render.yaml` for Blueprint deploys.
+
+### Option A: Blueprint (recommended)
+1. Push repository to GitHub.
+2. In Render, create a new **Blueprint** and connect the repo.
+3. Render reads `render.yaml` and configures:
+   - runtime: Node
+   - build command: `npm install`
+   - start command: `npm start`
+   - health check: `/api/health`
+4. Set required secrets in Render:
+   - `MONGODB_URI`
+   - `JWT_SECRET`
+   - `JWT_REFRESH_SECRET`
+   - `FRONTEND_URL` (if restricting CORS)
+
+### Option B: Manual Web Service
+Use the same commands/settings defined above and add the same environment variables.
+
+Generate secure JWT secrets:
+
+```bash
+node -e "console.log(require('crypto').randomBytes(64).toString('hex'))"
+```
 
 ---
 
 ## 📁 Project Structure
 
 ```
-server/
+Stylio-be/
 ├── src/
-│   ├── config/           # Configuration files
-│   │   ├── index.js      # Environment config
-│   │   └── database.js   # MongoDB connection
-│   │
-│   ├── controllers/      # Route handlers
-│   │   ├── auth.controller.js
-│   │   ├── salon.controller.js
-│   │   ├── service.controller.js
-│   │   ├── search.controller.js
-│   │   └── ...
-│   │
-│   ├── middleware/       # Express middleware
-│   │   ├── auth.js       # JWT verification
-│   │   ├── validate.js   # Zod validation
-│   │   └── errorHandler.js
-│   │
-│   ├── models/           # Mongoose schemas
-│   │   ├── User.js
-│   │   ├── Salon.js      # V1: mode, audience, geo
-│   │   ├── Service.js    # V1: mode, audience
-│   │   ├── Location.js   # City, Area with geo
-│   │   └── ...
-│   │
-│   ├── routes/           # API routes
-│   │   ├── auth.routes.js
-│   │   ├── salon.routes.js
-│   │   ├── search.routes.js
-│   │   └── ...
-│   │
-│   ├── services/         # Business logic services
-│   │   ├── email.service.js    # SMTP email sending
-│   │   └── notification.service.js # OTP, booking notifications
-│   │
-│   ├── utils/            # Helper functions
-│   │   └── searchHelpers.js
-│   │
-│   ├── validations/      # Zod schemas
-│   │   └── search.validation.js
-│   │
-│   ├── scripts/          # Utility scripts
-│   │   └── seed.js       # Database seeder
-│   │
-│   └── server.js         # App entry point
-│
-├── uploads/              # File uploads (gitignored)
+│   ├── config/          # Env + DB config
+│   ├── controllers/     # Request handlers
+│   ├── middleware/      # Auth, validation, error handlers
+│   ├── models/          # Mongoose schemas
+│   ├── routes/          # Route definitions
+│   ├── services/        # Email/SMS/push orchestration
+│   ├── utils/           # Search and response helpers
+│   ├── validations/     # Zod schemas
+│   ├── scripts/         # Data scripts (seed/import)
+│   └── server.js        # App bootstrap
+├── finalsalons_scrap.csv
+├── render.yaml
 ├── package.json
-├── render.yaml           # Render blueprint
 └── README.md
 ```
 
 ---
 
-## 🔐 Authentication
+## 🛡️ Security & Scalability Notes
 
-This application uses **OTP-based authentication** (no passwords):
-
-1. User enters email or phone number
-2. OTP is sent via email (and SMS in production)
-3. User verifies OTP to login/register
-
-### Sample Provider Emails (for testing)
-
-After running `npm run seed`, these sample provider accounts are available:
-
-| Role | Email | Login Method |
-|------|-------|--------------|
-| Salon Owner | `owner@stylestudio.com` | OTP via Email |
-| Home Provider | `priya@glamathome.com` | OTP via Email |
-| Barber | `vikram@gentscut.com` | OTP via Email |
-
-> **Note:** New customers register automatically when they verify OTP with a new email/phone.
-
----
-
-## 📝 Example API Calls
-
-### Geo Search (Mumbai)
-```bash
-curl "https://stylio-api.onrender.com/api/salons?lat=19.0760&lng=72.8777&radius=10000&mode=toHome&audience=women"
-```
-
-### Text Search
-```bash
-curl "https://stylio-api.onrender.com/api/search?q=haircut&mode=toSalon"
-```
-
-### Filter Services
-```bash
-curl "https://stylio-api.onrender.com/api/services?mode=toHome&audience=women&minPrice=500&maxPrice=2000"
-```
+- `helmet` is enabled for secure HTTP headers.
+- CORS is configurable via `FRONTEND_URL`; wildcard allowed for mobile/dev scenarios.
+- API-wide rate limiting is applied on `/api/*`.
+- Query validation is applied to search endpoints using Zod schemas.
+- Global error middleware normalizes validation/JWT/Mongoose errors.
+- Geospatial (`2dsphere`), text, and compound indexes are used across core models for scalable search and filtering.
 
 ---
 
@@ -542,18 +401,6 @@ curl "https://stylio-api.onrender.com/api/services?mode=toHome&audience=women&mi
 ## 📄 License
 
 This project is licensed under the ISC License.
-
----
-
-## 🙋 Support
-
-For issues and questions:
-- Create a [GitHub Issue](https://github.com/your-username/stylio-api/issues)
-- Email: support@stylio.app
-
----
-
-**Made with ❤️ by the Stylio Team**
 
 
 
